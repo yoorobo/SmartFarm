@@ -33,6 +33,7 @@ NetworkManager::NetworkManager()
 
 void NetworkManager::initHardware() {
     _motorController.init();
+    _rfidReader.init();
     Serial.println("[NetworkManager] 하드웨어 초기화 완료");
 }
 
@@ -94,6 +95,9 @@ bool NetworkManager::connectToServer(const char* serverIP, uint16_t serverPort) 
 void NetworkManager::handleIncoming() {
     // 라인트레이싱 업데이트 (매 사이클 실행)
     _lineFollower.update();
+
+    // RFID 태그 읽기 (매 사이클 실행)
+    _rfidReader.readTag();
 
     // TCP 소켓에 수신 데이터가 있는지 확인
     if (!_tcpClient.connected() || !_tcpClient.available()) {
@@ -157,7 +161,7 @@ void NetworkManager::broadcastRobotState(const char* robotId, int posX, int posY
      *
      * 송신 포맷:
      *   {"type": "ROBOT_STATE", "robot_id": "R01", "pos_x": 120, "pos_y": 350, "battery": 80,
-     *    "state": 1, "node": "A1", "sensors": [0,1,1,1,0]}
+     *    "state": 1, "node": "A1", "sensors": [0,1,1,1,0], "plant_id": "A1B2C3D4"}
      */
 
     // TCP 연결 확인
@@ -189,6 +193,10 @@ void NetworkManager::broadcastRobotState(const char* robotId, int posX, int posY
     sensors.add(s3);
     sensors.add(s4);
     sensors.add(s5);
+
+    // RFID 태그 정보 추가 (식물 ID)
+    String plantId = _rfidReader.getLastTagUID();
+    doc["plant_id"] = plantId.length() > 0 ? plantId : "";
 
     // JSON → 문자열 직렬화
     char jsonBuffer[512];

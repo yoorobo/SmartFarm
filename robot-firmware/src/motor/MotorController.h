@@ -7,12 +7,15 @@
  *   - DC 모터 제어 (L298N 드라이버)
  *   - IR 라인 센서 읽기 (5채널)
  *   - 속도 설정
+ *
+ * 핀 설정: config/PinConfig.h 참조
  */
 
 #ifndef MOTOR_CONTROLLER_H
 #define MOTOR_CONTROLLER_H
 
 #include <Arduino.h>
+#include "../config/PinConfig.h"
 
 class MotorController {
 public:
@@ -75,20 +78,19 @@ public:
     int getSpeedHard() const { return _speedHard; }
 
 private:
-    // ─────────── 모터 드라이버 핀 (L298N) ───────────
-    static const int PIN_ENA = 14;  // 좌측 모터 PWM
-    static const int PIN_IN1 = 27;  // 좌측 모터 방향 1
-    static const int PIN_IN2 = 26;  // 좌측 모터 방향 2
-    static const int PIN_IN3 = 25;  // 우측 모터 방향 1
-    static const int PIN_IN4 = 32;  // 우측 모터 방향 2
-    static const int PIN_ENB = 33;  // 우측 모터 PWM
+    // ─────────── 핀 설정 (PinConfig.h 참조) ───────────
+    static const int PIN_ENA = MOTOR_ENA_PIN;
+    static const int PIN_IN1 = MOTOR_IN1_PIN;
+    static const int PIN_IN2 = MOTOR_IN2_PIN;
+    static const int PIN_IN3 = MOTOR_IN3_PIN;
+    static const int PIN_IN4 = MOTOR_IN4_PIN;
+    static const int PIN_ENB = MOTOR_ENB_PIN;
 
-    // ─────────── IR 센서 핀 ───────────
-    static const int PIN_S1 = 18;   // 좌측 끝
-    static const int PIN_S2 = 19;   // 좌측
-    static const int PIN_S3 = 21;   // 중앙
-    static const int PIN_S4 = 22;   // 우측
-    static const int PIN_S5 = 23;   // 우측 끝
+    static const int PIN_S1 = IR_S1_PIN;
+    static const int PIN_S2 = IR_S2_PIN;
+    static const int PIN_S3 = IR_S3_PIN;
+    static const int PIN_S4 = IR_S4_PIN;
+    static const int PIN_S5 = IR_S5_PIN;
 
     // ─────────── 속도 설정 ───────────
     int _speedForward;

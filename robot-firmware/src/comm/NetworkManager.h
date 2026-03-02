@@ -21,7 +21,7 @@
  *
  * [송신 상태 포맷 – TCP]
  *   {"type": "ROBOT_STATE", "robot_id": "R01", "pos_x": 120, "pos_y": 350, "battery": 80,
- *    "state": 1, "node": "A1", "sensors": [0,1,1,1,0]}
+ *    "state": 1, "node": "A1", "sensors": [0,1,1,1,0], "plant_id": "A1B2C3D4"}
  */
 
 #ifndef NETWORK_MANAGER_H
@@ -35,6 +35,7 @@
 
 #include "../motor/MotorController.h"
 #include "../line/LineFollower.h"
+#include "../rfid/RFIDReader.h"
 
 /**
  * @brief ESP32 로봇의 네트워크 통신을 총괄하는 매니저 클래스.
@@ -99,9 +100,16 @@ public:
      *
      * 송신 포맷:
      *   {"type": "ROBOT_STATE", "robot_id": "R01", "pos_x": 120, "pos_y": 350, "battery": 80,
-     *    "state": 1, "node": "A1", "sensors": [0,1,1,1,0]}
+     *    "state": 1, "node": "A1", "sensors": [0,1,1,1,0], "plant_id": "A1B2C3D4"}
      */
     void broadcastRobotState(const char* robotId, int posX, int posY, int battery);
+
+    // ─────────── RFID 리더 접근 ───────────
+    /**
+     * @brief RFIDReader 객체 참조 반환 (외부에서 상태 조회용).
+     */
+    RFIDReader& getRFIDReader() { return _rfidReader; }
+    const RFIDReader& getRFIDReader() const { return _rfidReader; }
 
     // ─────────── TCP 응답 전송 ───────────
     /**
@@ -171,6 +179,9 @@ private:
     // ─────────── 모터 및 라인트레이싱 ───────────
     MotorController _motorController;   // 모터 컨트롤러
     LineFollower    _lineFollower;      // 라인트레이서
+
+    // ─────────── RFID ───────────
+    RFIDReader      _rfidReader;        // RFID 리더
 };
 
 #endif // NETWORK_MANAGER_H
