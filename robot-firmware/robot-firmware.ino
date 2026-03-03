@@ -10,7 +10,7 @@
  *   - UDP 상태 브로드캐스트
  */
 
-#include "src/comm/NetworkManager.h"
+#include "src/comm/RobotNetworkManager.h"
 
 // ============================================================
 //  설정값 (필요에 따라 수정)
@@ -21,7 +21,7 @@ const char* WIFI_SSID     = "addineedu-201class_4-2.4G";
 const char* WIFI_PASSWORD = "201class4!";
 
 // 중앙 서버 설정
-const char* SERVER_IP   = "192.168.0.135/ 서버 IP 주소 아직 안정해짐
+const char* SERVER_IP   = "192.168.0.135/ 
 const uint16_t SERVER_PORT = 8080;          // 서버 TCP 포트 이것도 미정
 
 // 로봇 식별자
@@ -34,7 +34,7 @@ const unsigned long BROADCAST_INTERVAL = 1000; // 1초
 //  전역 객체
 // ============================================================
 
-NetworkManager networkManager;
+RobotNetworkManager robotNetworkManager;
 
 unsigned long lastBroadcastTime = 0;
 
@@ -52,11 +52,11 @@ void setup() {
     Serial.println("========================================");
 
     // 1. 하드웨어 초기화 (모터, 센서)
-    networkManager.initHardware();
+    robotNetworkManager.initHardware();
 
     // 2. Wi-Fi 연결
     Serial.println("\n[Main] Wi-Fi 연결 중...");
-    if (!networkManager.connectWiFi(WIFI_SSID, WIFI_PASSWORD)) {
+    if (!robotNetworkManager.connectWiFi(WIFI_SSID, WIFI_PASSWORD)) {
         Serial.println("[Main] ❌ Wi-Fi 연결 실패! 5초 후 재시작합니다.");
         delay(5000);
         ESP.restart();
@@ -64,7 +64,7 @@ void setup() {
 
     // 3. 서버 TCP 연결
     Serial.println("\n[Main] 서버 연결 중...");
-    if (!networkManager.connectToServer(SERVER_IP, SERVER_PORT)) {
+    if (!robotNetworkManager.connectToServer(SERVER_IP, SERVER_PORT)) {
         Serial.println("[Main] ⚠️ 서버 연결 실패. 독립 모드로 동작합니다.");
     }
 
@@ -79,14 +79,14 @@ void setup() {
 
 void loop() {
     // TCP 명령 수신 및 라인트레이싱 업데이트
-    networkManager.handleIncoming();
+    robotNetworkManager.handleIncoming();
 
     // 주기적 상태 브로드캐스트
     unsigned long currentTime = millis();
     if (currentTime - lastBroadcastTime >= BROADCAST_INTERVAL) {
         // 위치 좌표는 추후 구현 (현재 0, 0 전송)
         // 배터리 잔량도 추후 구현 (현재 100% 전송)
-        networkManager.broadcastRobotState(ROBOT_ID, 0, 0, 100);
+        robotNetworkManager.broadcastRobotState(ROBOT_ID, 0, 0, 100);
         lastBroadcastTime = currentTime;
     }
 }

@@ -1,13 +1,15 @@
 /**
- * NetworkManager.cpp
- * ==================
+ * RobotNetworkManager.cpp
+ * =======================
  * ESP32 로봇 펌웨어용 네트워크 통신 매니저 구현 파일.
- * 
+ *
  * ArduinoJson 라이브러리를 사용하여 TCP/UDP JSON 통신을 처리한다.
  * 핸들러 내부의 비즈니스 로직(모터 구동, 센서 읽기 등)은 팀원이 구현할 것.
+ * [수정됨] ESP32 기본 라이브러리 충돌을 막기 위해
+ * 클래스 이름이 RobotNetworkManager로 변경되었습니다.
  */
 
-#include "NetworkManager.h"
+#include "RobotNetworkManager.h"
 
 // ── 기본 포트 설정 ──
 static const uint16_t DEFAULT_UDP_PORT = 9000;
@@ -16,38 +18,40 @@ static const uint16_t DEFAULT_UDP_PORT = 9000;
 //  생성자 / 소멸자
 // ============================================================
 
-NetworkManager::NetworkManager()
+RobotNetworkManager::RobotNetworkManager()
     : _serverIP(nullptr)
     , _serverPort(0)
     , _udpPort(DEFAULT_UDP_PORT)
+    , _msgCount(0)
+    , _lastReconnectAttempt(0)
     , _motorController()
     , _lineFollower(_motorController)
 {
     memset(_recvBuffer, 0, sizeof(_recvBuffer));
-    Serial.println("[NetworkManager] 초기화 완료");
+    Serial.println("[RobotNetworkManager] 초기화 완료");
 }
 
 // ============================================================
 //  하드웨어 초기화
 // ============================================================
 
-void NetworkManager::initHardware() {
+void RobotNetworkManager::initHardware() {
     _motorController.init();
     _rfidReader.init();
-    Serial.println("[NetworkManager] 하드웨어 초기화 완료");
+    Serial.println("[RobotNetworkManager] 하드웨어 초기화 완료");
 }
 
-NetworkManager::~NetworkManager() {
+RobotNetworkManager::~RobotNetworkManager() {
     _tcpClient.stop();
-    Serial.println("[NetworkManager] 소멸자 – 연결 해제");
+    Serial.println("[RobotNetworkManager] 소멸자 – 연결 해제");
 }
 
 // ============================================================
 //  Wi-Fi 연결
 // ============================================================
 
-bool NetworkManager::connectWiFi(const char* ssid, const char* password) {
-    Serial.printf("[NetworkManager] Wi-Fi 연결 시도: %s\n", ssid);
+bool RobotNetworkManager::connectWiFi(const char* ssid, const char* password) {
+    Serial.printf("[RobotNetworkManager] Wi-Fi 연결 시도: %s\n", ssid);
 
     WiFi.begin(ssid, password);
 
@@ -60,11 +64,11 @@ bool NetworkManager::connectWiFi(const char* ssid, const char* password) {
     }
 
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("\n[NetworkManager] ✅ Wi-Fi 연결 성공! IP: %s\n",
+        Serial.printf("\n[RobotNetworkManager] Wi-Fi 연결 성공! IP: %s\n",
                       WiFi.localIP().toString().c_str());
         return true;
     } else {
-        Serial.println("\n[NetworkManager] ❌ Wi-Fi 연결 실패");
+        Serial.println("\n[RobotNetworkManager] Wi-Fi 연결 실패");
         return false;
     }
 }
@@ -73,18 +77,45 @@ bool NetworkManager::connectWiFi(const char* ssid, const char* password) {
 //  서버 TCP 연결
 // ============================================================
 
-bool NetworkManager::connectToServer(const char* serverIP, uint16_t serverPort) {
+bool RobotNetworkManager::connectToServer(const char* serverIP, uint16_t serverPort) {
     _serverIP = serverIP;
     _serverPort = serverPort;
 
-    Serial.printf("[NetworkManager] 서버 TCP 연결 시도: %s:%d\n", serverIP, serverPort);
+    Serial.printf("[RobotNetworkManager] 서버 TCP 연결 시도: %s:%d\n", serverIP, serverPort);
 
     if (_tcpClient.connect(serverIP, serverPort)) {
-        Serial.println("[NetworkManager] ✅ 서버 연결 성공");
+        Serial.println("[RobotNetworkManager] 서버 연결 성공");
         return true;
     } else {
-        Serial.println("[NetworkManager] ❌ 서버 연결 실패");
+        Serial.println("[RobotNetworkManager] 서버 연결 실패");
         return false;
+    }
+}
+
+// ============================================================
+//  서버 연결 유지 (자동 복구)
+// ============================================================
+
+void RobotNetworkManager::maintainConnection() {
+    // Wi-Fi는 연결되어 있는데, 서버 소켓이 끊어진 경우에만 재연결 시도
+    if (WiFi.status() != WL_CONNECTED || _tcpClient.connected()) {
+        return;
+    }
+    if (_serverIP == nullptr) {
+        return;
+    }
+
+    unsigned long now = millis();
+    const unsigned long RECONNECT_INTERVAL = 5000;  // 5초 간격
+
+    if (now - _lastReconnectAttempt >= RECONNECT_INTERVAL) {
+        _lastReconnectAttempt = now;
+        Serial.println("[RobotNetworkManager] 서버와 연결이 끊어졌습니다. 재연결을 시도합니다...");
+        if (_tcpClient.connect(_serverIP, _serverPort)) {
+            Serial.println("[RobotNetworkManager] 서버 재연결 성공");
+        } else {
+            Serial.println("[RobotNetworkManager] 서버 재연결 실패");
+        }
     }
 }
 
@@ -92,12 +123,15 @@ bool NetworkManager::connectToServer(const char* serverIP, uint16_t serverPort) 
 //  메인 루프: TCP 수신 데이터 처리
 // ============================================================
 
-void NetworkManager::handleIncoming() {
+void RobotNetworkManager::handleIncoming() {
     // 라인트레이싱 업데이트 (매 사이클 실행)
     _lineFollower.update();
 
     // RFID 태그 읽기 (매 사이클 실행)
     _rfidReader.readTag();
+
+    // 서버 연결 유지 (끊어졌으면 재연결 시도)
+    maintainConnection();
 
     // TCP 소켓에 수신 데이터가 있는지 확인
     if (!_tcpClient.connected() || !_tcpClient.available()) {
@@ -109,7 +143,7 @@ void NetworkManager::handleIncoming() {
     _recvBuffer[len] = '\0';
 
     String rawData = String(_recvBuffer);
-    Serial.printf("[NetworkManager] 📨 수신: %s\n", rawData.c_str());
+    Serial.printf("[RobotNetworkManager] 수신: %s\n", rawData.c_str());
 
     // ── JSON 파싱 ──
     JsonDocument doc;
@@ -131,7 +165,7 @@ void NetworkManager::handleIncoming() {
         handleManual(doc);
 
     } else {
-        Serial.printf("[NetworkManager] ⚠️ 알 수 없는 명령: %s\n", cmd);
+        Serial.printf("[RobotNetworkManager] 알 수 없는 명령: %s\n", cmd);
         sendResponse("FAIL", "알 수 없는 명령");
     }
 }
@@ -140,11 +174,11 @@ void NetworkManager::handleIncoming() {
 //  JSON 파싱
 // ============================================================
 
-bool NetworkManager::parseCommand(const String& rawData, JsonDocument& doc) {
+bool RobotNetworkManager::parseCommand(const String& rawData, JsonDocument& doc) {
     DeserializationError error = deserializeJson(doc, rawData);
 
     if (error) {
-        Serial.printf("[NetworkManager] ❌ JSON 파싱 오류: %s\n", error.c_str());
+        Serial.printf("[RobotNetworkManager] JSON 파싱 오류: %s\n", error.c_str());
         return false;
     }
 
@@ -152,10 +186,10 @@ bool NetworkManager::parseCommand(const String& rawData, JsonDocument& doc) {
 }
 
 // ============================================================
-//  로봇 상태 UDP 브로드캐스트
+//  로봇 상태 TCP 전송
 // ============================================================
 
-void NetworkManager::broadcastRobotState(const char* robotId, int posX, int posY, int battery) {
+void RobotNetworkManager::broadcastRobotState(const char* robotId, int posX, int posY, int battery) {
     /*
      * 서버에 로봇의 현재 상태를 TCP로 전송한다.
      *
@@ -164,9 +198,8 @@ void NetworkManager::broadcastRobotState(const char* robotId, int posX, int posY
      *    "state": 1, "node": "A1", "sensors": [0,1,1,1,0], "plant_id": "A1B2C3D4"}
      */
 
-    // TCP 연결 확인
+    // TCP 연결 확인 (연결 없을 때는 조용히 스킵, 재연결은 maintainConnection이 담당)
     if (!_tcpClient.connected()) {
-        Serial.println("[NetworkManager] ⚠️ TCP 연결 없음 - 상태 전송 스킵");
         return;
     }
 
@@ -178,6 +211,7 @@ void NetworkManager::broadcastRobotState(const char* robotId, int posX, int posY
     JsonDocument doc;
     doc["type"]     = "ROBOT_STATE";
     doc["robot_id"] = robotId;
+    doc["count"]    = _msgCount++;
     doc["pos_x"]    = posX;
     doc["pos_y"]    = posY;
     doc["battery"]  = battery;
@@ -205,14 +239,14 @@ void NetworkManager::broadcastRobotState(const char* robotId, int posX, int posY
     // TCP로 전송
     _tcpClient.println(jsonBuffer);
 
-    Serial.printf("[NetworkManager] 📡 상태 전송(TCP): %s\n", jsonBuffer);
+    Serial.printf("[RobotNetworkManager] 상태 전송(TCP): %s\n", jsonBuffer);
 }
 
 // ============================================================
 //  TCP 응답 전송
 // ============================================================
 
-void NetworkManager::sendResponse(const char* status, const char* msg) {
+void RobotNetworkManager::sendResponse(const char* status, const char* msg) {
     /*
      * 서버에 명령 처리 결과를 TCP로 응답한다.
      *
@@ -228,14 +262,14 @@ void NetworkManager::sendResponse(const char* status, const char* msg) {
     serializeJson(doc, jsonBuffer, sizeof(jsonBuffer));
 
     _tcpClient.println(jsonBuffer);
-    Serial.printf("[NetworkManager] 📤 응답 전송: %s\n", jsonBuffer);
+    Serial.printf("[RobotNetworkManager] 응답 전송: %s\n", jsonBuffer);
 }
 
 // ============================================================
 //  명령 핸들러 (뼈대 – 팀원이 내부 로직 구현)
 // ============================================================
 
-void NetworkManager::handleMove(JsonDocument& doc) {
+void RobotNetworkManager::handleMove(JsonDocument& doc) {
     /*
      * 이동 명령 처리.
      *
@@ -250,7 +284,7 @@ void NetworkManager::handleMove(JsonDocument& doc) {
     // 경로 기반 이동 (path 필드가 있는 경우)
     if (doc.containsKey("path")) {
         const char* path = doc["path"];
-        Serial.printf("[NetworkManager] 🚗 경로 이동 명령 수신 → 경로: %s\n", path);
+        Serial.printf("[RobotNetworkManager] 경로 이동 명령 수신 → 경로: %s\n", path);
 
         _lineFollower.setPath(path);
         _lineFollower.start();
@@ -262,18 +296,18 @@ void NetworkManager::handleMove(JsonDocument& doc) {
     // 노드 기반 이동 (target_node 필드가 있는 경우)
     if (doc.containsKey("target_node")) {
         const char* targetNode = doc["target_node"];
-        Serial.printf("[NetworkManager] 🚗 노드 이동 명령 수신 → 목표: %s\n", targetNode);
+        Serial.printf("[RobotNetworkManager] 노드 이동 명령 수신 → 목표: %s\n", targetNode);
 
         // TODO: 노드 좌표 조회 및 이동 로직 구현
         sendResponse("SUCCESS", "노드 이동 명령 수신 확인");
         return;
     }
 
-    Serial.println("[NetworkManager] ⚠️ MOVE 명령에 path 또는 target_node 필드 없음");
+    Serial.println("[RobotNetworkManager] MOVE 명령에 path 또는 target_node 필드 없음");
     sendResponse("FAIL", "path 또는 target_node 필드 필요");
 }
 
-void NetworkManager::handleTask(JsonDocument& doc) {
+void RobotNetworkManager::handleTask(JsonDocument& doc) {
     /*
      * 작업 명령 처리 (Pick-and-Place 등).
      * 수신: {"cmd": "TASK", "action": "PICK_AND_PLACE", "count": 5}
@@ -285,7 +319,7 @@ void NetworkManager::handleTask(JsonDocument& doc) {
      */
     const char* action = doc["action"];
     int count = doc["count"] | 1;  // 기본값 1
-    Serial.printf("[NetworkManager] 🎯 작업 명령 수신 → 동작: %s, 횟수: %d\n", action, count);
+    Serial.printf("[RobotNetworkManager] 작업 명령 수신 → 동작: %s, 횟수: %d\n", action, count);
 
     // TODO: so-arm 제어 로직 구현
     // ArmController::pickAndPlace(count);
@@ -293,7 +327,7 @@ void NetworkManager::handleTask(JsonDocument& doc) {
     sendResponse("SUCCESS", "작업 명령 수신 확인");
 }
 
-void NetworkManager::handleManual(JsonDocument& doc) {
+void RobotNetworkManager::handleManual(JsonDocument& doc) {
     /*
      * 수동 제어 명령 처리.
      * 수신: {"cmd": "MANUAL", "device": "FAN", "state": "ON"}
@@ -306,7 +340,7 @@ void NetworkManager::handleManual(JsonDocument& doc) {
      */
     const char* device = doc["device"];
     const char* state  = doc["state"];
-    Serial.printf("[NetworkManager] 🔧 수동 제어 수신 → 장치: %s, 상태: %s\n", device, state);
+    Serial.printf("[RobotNetworkManager] 수동 제어 수신 → 장치: %s, 상태: %s\n", device, state);
 
     // TODO: GPIO 핀 제어 로직 구현
     // int pin = getPinForDevice(device);

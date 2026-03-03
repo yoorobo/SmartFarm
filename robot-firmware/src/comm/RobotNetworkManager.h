@@ -1,12 +1,12 @@
 /**
- * NetworkManager.h
- * ================
+ * RobotNetworkManager.h
+ * =====================
  * ESP32 로봇 펌웨어용 네트워크 통신 매니저 헤더 파일.
  *
  * 역할:
  *   - Wi-Fi 연결 관리
  *   - 중앙 서버와 TCP 통신 (제어 명령 수신 / 응답 전송)
- *   - 서버로 UDP 상태 브로드캐스트 (위치, 배터리 등)
+ *   - 서버로 TCP 상태 전송 (위치, 배터리 등)
  *   - ArduinoJson 라이브러리를 이용한 JSON 파싱/생성
  *   - 라인트레이싱 경로 추종 제어
  *
@@ -24,8 +24,8 @@
  *    "state": 1, "node": "A1", "sensors": [0,1,1,1,0], "plant_id": "A1B2C3D4"}
  */
 
-#ifndef NETWORK_MANAGER_H
-#define NETWORK_MANAGER_H
+#ifndef ROBOT_NETWORK_MANAGER_H
+#define ROBOT_NETWORK_MANAGER_H
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -42,13 +42,15 @@
  *
  * 팀원 가이드:
  *   - 명령 수신 콜백을 등록하면, TCP 명령이 들어올 때 자동으로 호출됩니다.
- *   - UDP 상태 전송은 주기적으로 broadcastRobotState()를 호출하세요.
+ *   - 상태 전송은 주기적으로 broadcastRobotState()를 호출하세요.
+ *   - [중요] ESP32 기본 라이브러리와의 이름 충돌을 피하기 위해
+ *     기존 NetworkManager에서 RobotNetworkManager로 이름이 변경되었습니다.
  */
-class NetworkManager {
+class RobotNetworkManager {
 public:
     // ─────────── 생성자 / 소멸자 ───────────
-    NetworkManager();
-    ~NetworkManager();
+    RobotNetworkManager();
+    ~RobotNetworkManager();
 
     // ─────────── 초기화 ───────────
     /**
@@ -74,6 +76,13 @@ public:
      * @return 연결 성공 여부
      */
     bool connectToServer(const char* serverIP, uint16_t serverPort);
+
+    // ─────────── 서버 연결 유지 (자동 복구) ───────────
+    /**
+     * @brief 서버와 TCP 연결이 끊어졌을 경우 주기적으로 재연결을 시도한다.
+     *        loop() 내부의 handleIncoming()에서 자동으로 호출됨.
+     */
+    void maintainConnection();
 
     // ─────────── 메인 루프 처리 ───────────
     /**
@@ -176,6 +185,10 @@ private:
 
     char _recvBuffer[1024];     // TCP 수신 버퍼
 
+    // ─────────── 통신 재연결 및 상태 관리를 위한 변수 ───────────
+    unsigned long _msgCount;              // 송신 메시지 카운트 (Heartbeat)
+    unsigned long _lastReconnectAttempt;  // 마지막으로 서버 재연결을 시도한 시간 (밀리초)
+
     // ─────────── 모터 및 라인트레이싱 ───────────
     MotorController _motorController;   // 모터 컨트롤러
     LineFollower    _lineFollower;      // 라인트레이서
@@ -184,4 +197,4 @@ private:
     RFIDReader      _rfidReader;        // RFID 리더
 };
 
-#endif // NETWORK_MANAGER_H
+#endif // ROBOT_NETWORK_MANAGER_H
