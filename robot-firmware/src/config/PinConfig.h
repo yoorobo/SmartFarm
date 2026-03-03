@@ -69,10 +69,10 @@
 //  RFID 리더 핀 (MFRC522 - SPI 통신)
 // ═══════════════════════════════════════════════════════════════
 
-#define RFID_SCK_PIN    18      // SPI 클럭
-#define RFID_MISO_PIN   21      // SPI Master In Slave Out
-#define RFID_MOSI_PIN   19      // SPI Master Out Slave In
-#define RFID_SS_PIN     5       // SPI Slave Select (SDA)
+#define RFID_SCK_PIN    19      // SPI 클럭
+#define RFID_MISO_PIN   5      // SPI Master In Slave Out
+#define RFID_MOSI_PIN   18      // SPI Master Out Slave In
+#define RFID_SS_PIN     21      // SPI Slave Select (SDA)
 #define RFID_RST_PIN    4       // 리셋
 
 // ═══════════════════════════════════════════════════════════════
