@@ -17,8 +17,12 @@ LineFollower::LineFollower(MotorController& motor)
     , _isRunning(false)
     , _state(RobotState::IDLE)
     , _nodeName("-")
+    , _currentIdx(0)
+    , _currentDir(0)
+    , _pathNodeCount(0)
     , _s1(0), _s2(0), _s3(0), _s4(0), _s5(0)
 {
+    for (int i = 0; i < 16; i++) _pathNodeSeq[i] = -1;
 }
 
 // ============================================================
@@ -28,7 +32,39 @@ LineFollower::LineFollower(MotorController& motor)
 void LineFollower::setPath(const String& path) {
     _pathString = path;
     _currentStep = 0;
+    _pathNodeCount = 0;
     Serial.printf("[LineFollower] 경로 설정: %s\n", path.c_str());
+}
+
+void LineFollower::setPath(const String& path, const int* nodeSeq, int nodeCount) {
+    _pathString = path;
+    _currentStep = 0;
+    _pathNodeCount = 0;
+    if (nodeSeq != nullptr && nodeCount > 0) {
+        for (int i = 0; i < nodeCount && i < 16; i++) {
+            _pathNodeSeq[i] = nodeSeq[i];
+            _pathNodeCount++;
+        }
+    }
+    Serial.printf("[LineFollower] 경로 설정(노드추적): %s\n", path.c_str());
+}
+
+void LineFollower::setLocation(int nodeIdx, int dir, const char* nodeName) {
+    _currentIdx = nodeIdx;
+    _currentDir = (dir + 4) % 4;
+    _nodeName = (nodeName != nullptr && nodeName[0] != '\0')
+        ? String(nodeName) : ("n" + String(nodeIdx));
+}
+
+PathCommand LineFollower::charToPathCommand(char c) const {
+    switch (c) {
+        case 'L': return PathCommand::LEFT;
+        case 'R': return PathCommand::RIGHT;
+        case 'U': return PathCommand::UTURN;
+        case 'S': return PathCommand::STRAIGHT;
+        case 'E': return PathCommand::END;
+        default:  return PathCommand::NONE;
+    }
 }
 
 void LineFollower::start() {
@@ -39,7 +75,12 @@ void LineFollower::start() {
     _isRunning = true;
     _currentStep = 0;
     _state = RobotState::FORWARD;
-    _nodeName = "출발";
+    if (_pathNodeCount > 0) {
+        _currentIdx = _pathNodeSeq[0];
+        _nodeName = "n" + String(_currentIdx);
+    } else {
+        _nodeName = "출발";
+    }
     Serial.println("[LineFollower] 🚀 주행 시작");
 }
 
@@ -71,8 +112,12 @@ void LineFollower::update() {
         _motor.stop();
         delay(500);
 
-        // 노드 이름 갱신 (A1, A2, A3, ...)
-        _nodeName = "A" + String(_currentStep + 1);
+        // 노드 이름 갱신 (노드 시퀀스 있으면 해당 인덱스, 없으면 A1, A2...)
+        if (_pathNodeCount > 0 && _currentStep < _pathNodeCount) {
+            _nodeName = "n" + String(_pathNodeSeq[_currentStep]);
+        } else {
+            _nodeName = "A" + String(_currentStep + 1);
+        }
 
         // 경로 명령 실행
         executeCrossroadCommand();
@@ -109,9 +154,14 @@ void LineFollower::executeCrossroadCommand() {
         return;
     }
 
-    // 다음 명령 가져오기
-    int cmdValue = _pathString.charAt(_currentStep) - '0';
-    PathCommand cmd = static_cast<PathCommand>(cmdValue);
+    // 다음 명령 가져오기 (숫자 1-5 또는 문자 LRUSE)
+    char pathChar = _pathString.charAt(_currentStep);
+    PathCommand cmd;
+    if (pathChar >= '1' && pathChar <= '5') {
+        cmd = static_cast<PathCommand>(pathChar - '0');
+    } else {
+        cmd = charToPathCommand(pathChar);
+    }
 
     switch (cmd) {
         case PathCommand::END:
@@ -124,6 +174,11 @@ void LineFollower::executeCrossroadCommand() {
         case PathCommand::LEFT:
             Serial.println("[LineFollower] ⬅️ 좌회전 실행");
             _state = RobotState::FINDING_LEFT;
+            _currentDir = (_currentDir + 3) % 4;
+            if (_pathNodeCount > 0 && _currentStep + 1 < _pathNodeCount) {
+                _currentIdx = _pathNodeSeq[_currentStep + 1];
+                _nodeName = "n" + String(_currentIdx);
+            }
             _motor.goForward();
             delay(150);
             _motor.turnLeftHard();
@@ -134,6 +189,11 @@ void LineFollower::executeCrossroadCommand() {
         case PathCommand::RIGHT:
             Serial.println("[LineFollower] ➡️ 우회전 실행");
             _state = RobotState::FINDING_RIGHT;
+            _currentDir = (_currentDir + 1) % 4;
+            if (_pathNodeCount > 0 && _currentStep + 1 < _pathNodeCount) {
+                _currentIdx = _pathNodeSeq[_currentStep + 1];
+                _nodeName = "n" + String(_currentIdx);
+            }
             _motor.goForward();
             delay(150);
             _motor.turnRightHard();
@@ -144,6 +204,11 @@ void LineFollower::executeCrossroadCommand() {
         case PathCommand::UTURN:
             Serial.println("[LineFollower] ↩️ U턴 실행");
             _state = RobotState::FINDING_UTURN;
+            _currentDir = (_currentDir + 2) % 4;
+            if (_pathNodeCount > 0 && _currentStep + 1 < _pathNodeCount) {
+                _currentIdx = _pathNodeSeq[_currentStep + 1];
+                _nodeName = "n" + String(_currentIdx);
+            }
             _motor.goForward();
             delay(150);
             _motor.uTurnRight();
@@ -154,12 +219,16 @@ void LineFollower::executeCrossroadCommand() {
         case PathCommand::STRAIGHT:
             Serial.println("[LineFollower] ⬆️ 직진 통과");
             _state = RobotState::PASSING_STRAIGHT;
+            if (_pathNodeCount > 0 && _currentStep + 1 < _pathNodeCount) {
+                _currentIdx = _pathNodeSeq[_currentStep + 1];
+                _nodeName = "n" + String(_currentIdx);
+            }
             _motor.goForward();
             delay(300);
             break;
 
         default:
-            Serial.printf("[LineFollower] ⚠️ 알 수 없는 명령: %d\n", cmdValue);
+            Serial.printf("[LineFollower] ⚠️ 알 수 없는 명령: %c\n", pathChar);
             break;
     }
 

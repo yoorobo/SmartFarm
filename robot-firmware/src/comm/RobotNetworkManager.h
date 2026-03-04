@@ -35,6 +35,7 @@
 
 #include "../motor/MotorController.h"
 #include "../line/LineFollower.h"
+#include "../path/PathFinder.h"
 #include "../rfid/RFIDReader.h"
 
 /**
@@ -109,7 +110,7 @@ public:
      *
      * 송신 포맷:
      *   {"type": "ROBOT_STATE", "robot_id": "R01", "pos_x": 120, "pos_y": 350, "battery": 80,
-     *    "state": 1, "node": "A1", "sensors": [0,1,1,1,0], "plant_id": "A1B2C3D4"}
+     *    "state": 1, "node_idx": 0, "dir": 1, "sensors": [0,1,1,1,0], "plant_id": "..."}
      */
     void broadcastRobotState(const char* robotId, int posX, int posY, int battery);
 
@@ -154,6 +155,18 @@ private:
     void handleMove(JsonDocument& doc);
 
     /**
+     * @brief GOTO 명령 처리.
+     *        {"cmd": "GOTO", "target": 5} 또는 {"cmd": "GOTO", "target_node": "s06"}
+     */
+    void handleGoto(JsonDocument& doc);
+
+    /**
+     * @brief SET_LOC 명령 처리.
+     *        {"cmd": "SET_LOC", "node": 0, "dir": 1}
+     */
+    void handleSetLoc(JsonDocument& doc);
+
+    /**
      * @brief 작업 명령 처리 (Pick-and-Place 등).
      *        수신: {"cmd": "TASK", "action": "PICK_AND_PLACE", "count": 5}
      *
@@ -192,6 +205,7 @@ private:
     // ─────────── 모터 및 라인트레이싱 ───────────
     MotorController _motorController;   // 모터 컨트롤러
     LineFollower    _lineFollower;      // 라인트레이서
+    PathFinder      _pathFinder;        // BFS 경로 탐색
 
     // ─────────── RFID ───────────
     RFIDReader      _rfidReader;        // RFID 리더

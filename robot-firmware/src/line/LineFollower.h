@@ -61,10 +61,19 @@ public:
 
     /**
      * @brief 경로 설정.
-     * @param path 숫자로 인코딩된 경로 문자열 (예: "12345")
-     *             1=L, 2=R, 3=U, 4=S, 5=E
+     * @param path 경로 문자열 (예: "12345" 또는 "LRUSE")
+     *             숫자: 1=L, 2=R, 3=U, 4=S, 5=E
+     *             문자: L=좌회전, R=우회전, U=U턴, S=직진, E=종료
      */
     void setPath(const String& path);
+
+    /**
+     * @brief 경로 설정 (노드 시퀀스 포함, 위치 추적용).
+     * @param path     경로 문자열 ("LRUSE" 형식)
+     * @param nodeSeq  경로상 노드 인덱스 배열 (start,...,target), nullptr이면 생략
+     * @param nodeCount nodeSeq 길이
+     */
+    void setPath(const String& path, const int* nodeSeq, int nodeCount);
 
     /**
      * @brief 주행 시작.
@@ -98,6 +107,26 @@ public:
     /** @brief 현재 경로 진행 단계 반환 */
     int getCurrentStep() const { return _currentStep; }
 
+    /**
+     * @brief 현재 노드 인덱스 반환 (0~15).
+     *        PathFinder 그래프와 연동용.
+     */
+    int getCurrentNodeIndex() const { return _currentIdx; }
+
+    /**
+     * @brief 현재 방향 반환 (0~3).
+     *        0=N, 1=E, 2=S, 3=W
+     */
+    int getCurrentDirection() const { return _currentDir; }
+
+    /**
+     * @brief 위치 수동 설정 (SET_LOC 명령용).
+     * @param nodeIdx  노드 인덱스 (0~15)
+     * @param dir      방향 (0~3)
+     * @param nodeName 노드 이름 (예: "a01"), nullptr이면 "n"+인덱스
+     */
+    void setLocation(int nodeIdx, int dir, const char* nodeName = nullptr);
+
     // ─────────── 센서 값 조회 ───────────
 
     /** @brief 센서 값 조회 (디버깅/상태 전송용) */
@@ -111,6 +140,9 @@ private:
 
     /** @brief 교차로에서 경로 명령 실행 */
     void executeCrossroadCommand();
+
+    /** @brief 문자 경로(LRUSE)를 PathCommand로 변환 */
+    PathCommand charToPathCommand(char c) const;
 
     /** @brief 일반 라인트레이싱 수행 */
     void followLine(int s1, int s2, int s3, int s4, int s5);
@@ -128,12 +160,18 @@ private:
 
     MotorController& _motor;    // 모터 컨트롤러 참조
 
-    String _pathString;         // 경로 문자열 (숫자 인코딩)
+    String _pathString;         // 경로 문자열 (숫자 또는 LRUSE)
     int _currentStep;           // 현재 경로 단계
     bool _isRunning;            // 주행 중 여부
 
     RobotState _state;          // 현재 로봇 상태
-    String _nodeName;           // 현재 노드 이름
+    String _nodeName;           // 현재 노드 이름 (예: "a01")
+
+    int _currentIdx;            // 현재 노드 인덱스 (0~15)
+    int _currentDir;            // 현재 방향 (0~3)
+
+    int _pathNodeSeq[16];       // 경로상 노드 시퀀스 (위치 추적용)
+    int _pathNodeCount;         // _pathNodeSeq 유효 개수, 0이면 미사용
 
     // 센서 캐시 (상태 전송용)
     int _s1, _s2, _s3, _s4, _s5;

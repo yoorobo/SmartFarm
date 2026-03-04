@@ -38,6 +38,7 @@ RobotNetworkManager::RobotNetworkManager()
 void RobotNetworkManager::initHardware() {
     _motorController.init();
     _rfidReader.init();
+    _pathFinder.initGraph();
     Serial.println("[RobotNetworkManager] 하드웨어 초기화 완료");
 }
 
@@ -158,6 +159,12 @@ void RobotNetworkManager::handleIncoming() {
     if (strcmp(cmd, "MOVE") == 0) {
         handleMove(doc);
 
+    } else if (strcmp(cmd, "GOTO") == 0) {
+        handleGoto(doc);
+
+    } else if (strcmp(cmd, "SET_LOC") == 0) {
+        handleSetLoc(doc);
+
     } else if (strcmp(cmd, "TASK") == 0) {
         handleTask(doc);
 
@@ -195,7 +202,7 @@ void RobotNetworkManager::broadcastRobotState(const char* robotId, int posX, int
      *
      * 송신 포맷:
      *   {"type": "ROBOT_STATE", "robot_id": "R01", "pos_x": 120, "pos_y": 350, "battery": 80,
-     *    "state": 1, "node": "A1", "sensors": [0,1,1,1,0], "plant_id": "A1B2C3D4"}
+     *    "state": 1, "node_idx": 0, "dir": 1, "sensors": [0,1,1,1,0], "plant_id": "..."}
      */
 
     // TCP 연결 확인 (연결 없을 때는 조용히 스킵, 재연결은 maintainConnection이 담당)
@@ -218,7 +225,8 @@ void RobotNetworkManager::broadcastRobotState(const char* robotId, int posX, int
 
     // 라인트레이싱 상태 추가
     doc["state"]    = static_cast<int>(_lineFollower.getState());
-    doc["node"]     = _lineFollower.getCurrentNode();
+    doc["node_idx"] = _lineFollower.getCurrentNodeIndex();
+    doc["dir"]      = _lineFollower.getCurrentDirection();
 
     // 센서 배열 추가
     JsonArray sensors = doc["sensors"].to<JsonArray>();
@@ -305,6 +313,73 @@ void RobotNetworkManager::handleMove(JsonDocument& doc) {
 
     Serial.println("[RobotNetworkManager] MOVE 명령에 path 또는 target_node 필드 없음");
     sendResponse("FAIL", "path 또는 target_node 필드 필요");
+}
+
+void RobotNetworkManager::handleGoto(JsonDocument& doc) {
+    /*
+     * GOTO 명령: PathFinder로 경로 계산 후 LineFollower로 이동.
+     * {"cmd": "GOTO", "target": 5} - 노드 인덱스
+     * {"cmd": "GOTO", "target_node": "s06"} - 노드 이름
+     */
+    int targetIdx = -1;
+    if (doc.containsKey("target")) {
+        targetIdx = doc["target"].as<int>();
+    } else if (doc.containsKey("target_node")) {
+        const char* nodeName = doc["target_node"];
+        targetIdx = _pathFinder.nodeNameToIndex(nodeName);
+    }
+
+    if (targetIdx < 0 || targetIdx >= _pathFinder.getNodeCount()) {
+        sendResponse("FAIL", "잘못된 목표 노드");
+        return;
+    }
+
+    int startIdx = _lineFollower.getCurrentNodeIndex();
+    int startDir = _lineFollower.getCurrentDirection();
+
+    char pathBuf[64];
+    int nodeSeq[16];
+    int len = _pathFinder.calculatePath(startIdx, targetIdx, startDir, pathBuf, nodeSeq, 16);
+
+    if (len < 0) {
+        sendResponse("FAIL", "경로 탐색 실패");
+        return;
+    }
+
+    // 노드 시퀀스 길이 계산 (nodeSeq에서 -1 또는 경로길이+1)
+    int nodeCount = 0;
+    for (int i = 0; i < 16 && nodeSeq[i] >= 0; i++) nodeCount++;
+
+    _lineFollower.setPath(String(pathBuf), nodeSeq, nodeCount);
+    _lineFollower.start();
+
+    Serial.printf("[RobotNetworkManager] GOTO %d → 경로: %s\n", targetIdx, pathBuf);
+    sendResponse("SUCCESS", "GOTO 경로 추종 시작");
+}
+
+void RobotNetworkManager::handleSetLoc(JsonDocument& doc) {
+    /*
+     * SET_LOC 명령: 현재 위치 수동 설정 (역추적/초기화용).
+     * {"cmd": "SET_LOC", "node": 0, "dir": 1}
+     */
+    if (!doc.containsKey("node") || !doc.containsKey("dir")) {
+        sendResponse("FAIL", "node, dir 필드 필요");
+        return;
+    }
+
+    int nodeIdx = doc["node"].as<int>();
+    int dir = doc["dir"].as<int>();
+
+    if (nodeIdx < 0 || nodeIdx >= _pathFinder.getNodeCount()) {
+        sendResponse("FAIL", "잘못된 노드 인덱스");
+        return;
+    }
+
+    dir = (dir % 4 + 4) % 4;
+    _lineFollower.setLocation(nodeIdx, dir, _pathFinder.indexToNodeName(nodeIdx));
+
+    Serial.printf("[RobotNetworkManager] SET_LOC node=%d dir=%d\n", nodeIdx, dir);
+    sendResponse("SUCCESS", "위치 설정 완료");
 }
 
 void RobotNetworkManager::handleTask(JsonDocument& doc) {
