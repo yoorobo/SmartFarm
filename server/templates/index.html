@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스마트팜 운반차 목적지 제어</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --accent: #58a6ff;
+            --success: #3fb950;
+            --error: #f85149;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .sub {
+            color: #8b949e;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            font-size: 0.85rem;
+            margin-bottom: 0.4rem;
+            color: #8b949e;
+        }
+        select {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 1rem;
+        }
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--accent);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 0.8rem;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+        .status.success { background: rgba(63,185,80,0.15); color: var(--success); }
+        .status.error   { background: rgba(248,81,73,0.15); color: var(--error); }
+        .status.info    { background: rgba(88,166,255,0.15); color: var(--accent); }
+        .task-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .task-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+        .task-list li:last-child { border-bottom: none; }
+        .task-list .badge {
+            display: inline-block;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .badge.PENDING { background: #ffa65733; color: #ffa657; }
+        .badge.SENT    { background: #58a6ff33; color: #58a6ff; }
+        .badge.COMPLETED { background: #3fb95033; color: #3fb950; }
+        .robots { font-size: 0.85rem; color: #8b949e; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>스마트팜 운반차 제어</h1>
+        <p class="sub">목적지를 선택하면 운반차가 해당 노드로 이동합니다.</p>
+
+        <div class="card">
+            <label for="destination">목적지 노드</label>
+            <select id="destination">
+                <option value="">-- 선택 --</option>
+                {% for n in nodes %}
+                <option value="{{ n }}">{{ n }}</option>
+                {% endfor %}
+            </select>
+            <button id="btnSend" type="button">목적지 전송</button>
+            <div id="msg" class="status" style="display:none"></div>
+        </div>
+
+        <div class="card">
+            <label for="locNode">현재 위치 설정</label>
+            <select id="locNode">
+                <option value="">-- 노드 선택 --</option>
+                {% for n in nodes %}
+                <option value="{{ n }}">{{ n }}</option>
+                {% endfor %}
+            </select>
+            <label for="locDir" style="margin-top:0.8rem">방향</label>
+            <select id="locDir">
+                <option value="">-- 방향 선택 --</option>
+                <option value="N">N (북)</option>
+                <option value="E">E (동)</option>
+                <option value="S">S (남)</option>
+                <option value="W">W (서)</option>
+            </select>
+            <button id="btnSetLoc" type="button">현재 위치 설정</button>
+            <div id="locMsg" class="status" style="display:none"></div>
+        </div>
+
+        <div class="card">
+            <div class="robots" id="robotStatus">연결된 로봇: 확인 중...</div>
+        </div>
+
+        <div class="card">
+            <h2 style="font-size:1rem;margin-top:0">로봇 상태</h2>
+            <div id="robotStateArea">
+                <div class="robots" id="robotState">상태: 대기 중...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="font-size:1rem;margin-top:0">최근 작업</h2>
+            <ul class="task-list" id="taskList"></ul>
+        </div>
+    </div>
+
+    <script>
+        const dest = document.getElementById('destination');
+        const btn = document.getElementById('btnSend');
+        const msg = document.getElementById('msg');
+        const locNode = document.getElementById('locNode');
+        const locDir = document.getElementById('locDir');
+        const btnSetLoc = document.getElementById('btnSetLoc');
+        const locMsg = document.getElementById('locMsg');
+        const robotStatus = document.getElementById('robotStatus');
+        const robotStateEl = document.getElementById('robotState');
+        const taskList = document.getElementById('taskList');
+
+        function showMsg(text, type) {
+            msg.textContent = text;
+            msg.className = 'status ' + type;
+            msg.style.display = 'block';
+        }
+
+        function showLocMsg(text, type) {
+            locMsg.textContent = text;
+            locMsg.className = 'status ' + type;
+            locMsg.style.display = 'block';
+        }
+
+        function loadRobots() {
+            fetch('/api/robots')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.robots && d.robots.length)
+                        robotStatus.textContent = '연결된 로봇: ' + d.robots.join(', ');
+                    else
+                        robotStatus.textContent = '연결된 로봇: 없음 (로봇 전원/Wi-Fi 확인)';
+                })
+                .catch(() => { robotStatus.textContent = '연결된 로봇: 확인 실패'; });
+        }
+
+        function loadRobotState() {
+            fetch('/api/robot_state')
+                .then(r => r.json())
+                .then(d => {
+                    if (!d.ok || !d.state) {
+                        robotStateEl.innerHTML = '상태: 수신 대기 중...';
+                        return;
+                    }
+                    const s = d.state;
+                    const nodeStr = s.node_name !== '-' ? s.node_name : '미지정';
+                    const arrivedStr = s.arrived ? '<span style="color:var(--success)">도착</span>' : '<span style="color:#8b949e">이동 중</span>';
+                    robotStateEl.innerHTML = `현재 노드: <strong>${nodeStr}</strong> · ${arrivedStr}`;
+                })
+                .catch(() => { robotStateEl.textContent = '상태: 조회 실패'; });
+        }
+
+        function loadTasks() {
+            fetch('/api/tasks')
+                .then(r => r.json())
+                .then(d => {
+                    if (!d.tasks || !d.tasks.length) {
+                        taskList.innerHTML = '<li>작업 없음</li>';
+                        return;
+                    }
+                    taskList.innerHTML = d.tasks.map(t =>
+                        `<li><span class="badge ${t.status}">${t.status}</span> ${t.destination} (${t.created_at})</li>`
+                    ).join('');
+                });
+        }
+
+        btn.addEventListener('click', () => {
+            const val = dest.value;
+            if (!val) {
+                showMsg('목적지를 선택하세요.', 'error');
+                return;
+            }
+            btn.disabled = true;
+            fetch('/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ destination: val })
+            })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.ok) {
+                        showMsg(d.message || '전송 완료', 'success');
+                        loadTasks();
+                    } else {
+                        showMsg(d.error || '전송 실패', 'error');
+                    }
+                })
+                .catch(e => {
+                    showMsg('네트워크 오류: ' + e.message, 'error');
+                })
+                .finally(() => { btn.disabled = false; });
+        });
+
+        btnSetLoc.addEventListener('click', () => {
+            const nodeVal = locNode.value;
+            const dirVal = locDir.value;
+            if (!nodeVal) {
+                showLocMsg('노드를 선택하세요.', 'error');
+                return;
+            }
+            if (!dirVal) {
+                showLocMsg('방향을 선택하세요.', 'error');
+                return;
+            }
+            btnSetLoc.disabled = true;
+            fetch('/api/set_location', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ node_name: nodeVal, direction: dirVal })
+            })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.ok) {
+                        showLocMsg(d.message || '위치 설정 요청을 전송했습니다.', 'success');
+                    } else {
+                        showLocMsg(d.error || '위치 설정 실패', 'error');
+                    }
+                })
+                .catch(e => {
+                    showLocMsg('네트워크 오류: ' + e.message, 'error');
+                })
+                .finally(() => { btnSetLoc.disabled = false; });
+        });
+
+        loadRobots();
+        loadTasks();
+        loadRobotState();
+        setInterval(loadRobots, 5000);
+        setInterval(loadTasks, 5000);
+        setInterval(loadRobotState, 2000);
+    </script>
+</body>
+</html>
