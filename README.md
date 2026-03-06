@@ -10,6 +10,13 @@
 
 ```
 iot-repo-4/
+├── server/                  # Flask 웹서버 + 로봇 TCP 브로커 (운반차 제어)
+│   ├── app.py               # Flask 진입점 (웹 UI 5000, TCP 8080)
+│   ├── run.sh               # 서버 실행 스크립트 (venv 자동 설정)
+│   ├── db.py                # SQLite DB 관리
+│   ├── templates/
+│   └── requirements.txt
+│
 ├── control-server/          # Python 기반 중앙 제어 서버 (DB 연동, 통신)
 │   ├── database/
 │   │   ├── __init__.py
@@ -39,7 +46,37 @@ iot-repo-4/
 | robot-firmware | C++ (ESP32, ESP32 CAM) | 무인 이송 시스템 펌웨어 |
 | farm-firmware | C++ (ESP32) | 육묘 환경 제어 펌웨어 |
 
-## 빠른 시작 (control-server)
+## 서버 실행 방법
+
+### 1. 스마트팜 운반차 제어 서버 (`server/`)
+
+Flask 웹서버 + 로봇 TCP 브로커. 웹 UI에서 목적지를 입력하면 ESP32 로봇에 GOTO 명령을 전송합니다.
+
+**방법 A: run.sh 사용 (권장)**
+
+```bash
+cd server
+./run.sh
+```
+
+`run.sh`가 가상환경(venv)이 없으면 생성하고, 의존성을 설치한 뒤 서버를 실행합니다.
+
+**방법 B: 수동 실행**
+
+```bash
+cd server
+python3 -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python app.py
+```
+
+- **웹 UI**: http://127.0.0.1:5000 (또는 노트북 IP:5000)
+- **로봇 TCP**: 0.0.0.0:8080
+
+> 로봇 펌웨어의 `SERVER_IP`를 노트북 IP로 설정해야 합니다. 자세한 내용은 `server/README.md` 참고.
+
+### 2. 중앙 제어 서버 (control-server)
 
 ```bash
 cd control-server
