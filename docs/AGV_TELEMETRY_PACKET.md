@@ -9,13 +9,13 @@
 
 | 필드명 | 예시 값 | 크기(B) | 타입 |
 |--------|---------|---------|------|
-| STX | 0x02 | 1 | char |
-| agv_id | 1 | 2 | int |
-| task_id | 5 | 2 | int |
-| current_status | 0x01 | 1 | char |
-| task_status | 0x01 | 1 | char |
-| CRC-16 | | 2 | int |
-| ETX | 0x03 | 1 | char |
+| STX | 0x02 | 1 | UINT8 |
+| agv_id | 1 | 2 | UINT16 |
+| task_id | 5 | 2 | UINT16 |
+| current_status | 0x01 | 1 | UINT8 |
+| task_status | 0x01 | 1 | UINT8 |
+| CRC-16 | | 2 | UINT16 |
+| ETX | 0x03 | 1 | UINT8 |
 | **합계** | | **11** | |
 
 ---
