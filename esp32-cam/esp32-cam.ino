@@ -3,20 +3,16 @@
  * - JPEG 캡처 후 UDP로 서버(포트 7070)에 전송
  * - 서버의 웹 UI에서 실시간 확인 가능
  *
- * 설정: ssid, password, udpAddress(서버 IP) 를 환경에 맞게 수정하세요.
+ * 설정: config/wifi_config.h 에서 Wi-Fi, 서버 IP 수정
  */
 
+#include "wifi_config.h"
 #include "esp_camera.h"
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
-// 1. 네트워크 및 전송 설정
-#define DEVICE_ID 1  // 장비별 고유 ID (다중 카메라 시 1, 2, 3... 변경)
-
-const char *ssid = "U+Net2890";           // WiFi 2.4G SSID
-const char *password = "5000008772";       // WiFi 비밀번호
-const char* udpAddress = "192.168.219.158";  // 서버(노트북) IP - firm-test 서버와 동일하게 설정
-const int udpPort = 7070;
+// 장비별 고유 ID (다중 카메라 시 1, 2, 3... 변경)
+#define DEVICE_ID 1
 
 WiFiUDP udp;
 
@@ -78,7 +74,7 @@ void setup() {
   }
 
   Serial.println("[WiFi] 연결 시도 중...");
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   WiFi.setSleep(false);
 
   int timeout = 20;  // 10초 (500ms × 20)
@@ -93,7 +89,7 @@ void setup() {
     Serial.printf("[WiFi] 연결됨. IP: %s, RSSI: %ddBm\n",
                   WiFi.localIP().toString().c_str(), WiFi.RSSI());
     Serial.println("UDP 스트리밍 시작!");
-    Serial.printf("전송 대상: %s:%d\n", udpAddress, udpPort);
+    Serial.printf("전송 대상: %s:%d\n", SERVER_IP, SERVER_UDP_PORT);
     Serial.flush();
   } else {
     Serial.println("[WiFi] 연결 실패! 5초 후 재시작...");
@@ -115,7 +111,7 @@ void sendImageUDP(uint8_t *imageData, size_t imageSize, uint8_t frameNo, uint8_t
     size_t chunkSize = std::min(remainingSize, (size_t)1024);
     bool isLastPacket = (remainingSize <= 1024);
 
-    udp.beginPacket(udpAddress, udpPort);
+    udp.beginPacket(SERVER_IP, SERVER_UDP_PORT);
     udp.write(vehicleId);
     udp.write(frameNo);
     udp.write(packetNo);

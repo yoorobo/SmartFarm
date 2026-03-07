@@ -34,33 +34,21 @@ python app.py
 - 로봇 TCP: 0.0.0.0:8080
 - ESP32-CAM UDP: 0.0.0.0:7070
 
-### 3. 로봇 펌웨어 설정
+### 3. 펌웨어 설정 (로봇, ESP32-CAM 공통)
 
-로봇이 **노트북 IP**로 연결해야 합니다. `robot-firmware/robot-firmware.ino`에서 `SERVER_IP`를 노트북 IP로 수정하세요.
-
-```cpp
-const char* SERVER_IP   = "192.168.0.xxx";  // 노트북 IP
-const uint16_t SERVER_PORT = 8080;
-```
-
-### 4. ESP32-CAM 웹캠 설정 (선택)
-
-ESP32-CAM으로 실시간 영상을 웹에서 보려면:
-
-1. `esp32-cam/esp32-cam.ino`를 Arduino IDE에서 열기
-2. `ssid`, `password`, `udpAddress` 수정:
+**`config/wifi_config.h`** 한 파일에서 Wi-Fi와 서버 주소를 관리합니다. 이 파일만 수정하면 robot-firmware와 esp32-cam 모두 적용됩니다.
 
 ```cpp
-const char *ssid = "YOUR_WIFI_SSID";
-const char *password = "YOUR_WIFI_PASSWORD";
-const char* udpAddress = "192.168.0.xxx";  // 서버(노트북) IP - 로봇과 동일
-const int udpPort = 7070;  // 서버 UDP 수신 포트
+#define WIFI_SSID     "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+#define SERVER_IP     "192.168.0.xxx"   // 노트북 IP (Linux: hostname -I / Windows: ipconfig)
 ```
 
-3. ESP32-CAM에 업로드 후 전원 연결
-4. 웹 UI의 "ESP32-CAM 뷰" 섹션에서 실시간 영상 확인
+- `robot-firmware`: 위 설정으로 Wi-Fi 연결 후 서버 TCP(8080) 접속
+- `esp32-cam`: 위 설정으로 Wi-Fi 연결 후 이미지 UDP(7070) 전송
+- 웹 UI "ESP32-CAM 뷰"에서 실시간 영상 확인
 
-### 5. 사용 순서
+### 4. 사용 순서
 
 노트북 IP 확인:
 - Linux: `ip addr` 또는 `hostname -I`

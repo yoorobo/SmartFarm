@@ -10,20 +10,13 @@
  *   - UDP 상태 브로드캐스트
  */
 
+#include "wifi_config.h"
 #include <WiFi.h>
 #include "src/comm/RobotNetworkManager.h"
 
 // ============================================================
-//  설정값 (필요에 따라 수정)
+//  설정값 (Wi-Fi, 서버 IP는 config/wifi_config.h 에서 관리)
 // ============================================================
-
-// Wi-Fi 설정
-const char *ssid = "U+net2890";           // WiFi 2.4G SSID
-const char *password = "5000008772";       // WiFi 비밀번호
-
-// 중앙 서버 설정
-const char* SERVER_IP   = "192.168.219.158";   // 노트북 IP
-const uint16_t SERVER_PORT = 8080;         // 서버 TCP 포트 이것도 미정
 
 // 로봇 식별자
 const char* ROBOT_ID = "R01";
@@ -68,7 +61,7 @@ void setup() {
 
     // 3. 서버 TCP 연결
     Serial.println("\n[Main] 서버 연결 중...");
-    if (!robotNetworkManager.connectToServer(SERVER_IP, SERVER_PORT)) {
+    if (!robotNetworkManager.connectToServer(SERVER_IP, SERVER_TCP_PORT)) {
         Serial.println("[Main] ⚠️ 서버 연결 실패. 독립 모드로 동작합니다.");
     }
 

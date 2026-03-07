@@ -10,6 +10,9 @@
 
 ```
 iot-repo-4/
+├── config/
+│   └── wifi_config.h        # Wi-Fi, 서버 IP - 한 곳에서 관리 (robot-firmware, esp32-cam 공통)
+│
 ├── server/                  # Flask 웹서버 + 로봇 TCP 브로커 (운반차 제어)
 │   ├── app.py               # Flask 진입점 (웹 UI 5000, TCP 8080)
 │   ├── run.sh               # 서버 실행 스크립트 (venv 자동 설정)
