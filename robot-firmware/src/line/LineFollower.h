@@ -43,7 +43,8 @@ enum class PathCommand {
     RIGHT = 2,      // R: 우회전
     UTURN = 3,      // U: U턴
     STRAIGHT = 4,   // S: 직진
-    END = 5         // E: 종료
+    END = 5,        // E: 종료
+    BACKWARD = 6    // B: 후진
 };
 
 /**
@@ -61,9 +62,9 @@ public:
 
     /**
      * @brief 경로 설정.
-     * @param path 경로 문자열 (예: "12345" 또는 "LRUSE")
-     *             숫자: 1=L, 2=R, 3=U, 4=S, 5=E
-     *             문자: L=좌회전, R=우회전, U=U턴, S=직진, E=종료
+     * @param path 경로 문자열 (예: "123456" 또는 "LRUSEB")
+     *             숫자: 1=L, 2=R, 3=U, 4=S, 5=E, 6=B
+     *             문자: L=좌회전, R=우회전, U=U턴, S=직진, E=종료, B=후진
      */
     void setPath(const String& path);
 
@@ -120,6 +121,12 @@ public:
     int getCurrentDirection() const { return _currentDir; }
 
     /**
+     * @brief 교차로 후진 시간 설정 (0=비활성화).
+     *        교차로 도달 시 지정 시간(ms)만큼 후진 후 경로 명령 실행.
+     */
+    void setCrossroadBackwardMs(unsigned int ms) { _crossroadBackwardMs = ms; }
+
+    /**
      * @brief 위치 수동 설정 (SET_LOC 명령용).
      * @param nodeIdx  노드 인덱스 (0~15)
      * @param dir      방향 (0~3)
@@ -146,6 +153,9 @@ private:
 
     /** @brief 일반 라인트레이싱 수행 */
     void followLine(int s1, int s2, int s3, int s4, int s5);
+
+    /** @brief 후진 라인트레이싱 (교차로 후진용) */
+    void followLineBackward(int s1, int s2, int s3, int s4, int s5);
 
     /** @brief 좌회전 완료 대기 (라인 안착) */
     void waitForLineAfterLeft();
@@ -175,6 +185,8 @@ private:
 
     // 센서 캐시 (상태 전송용)
     int _s1, _s2, _s3, _s4, _s5;
+
+    unsigned int _crossroadBackwardMs;  // 교차로에서 후진 시간 (0=미사용)
 };
 
 #endif // LINE_FOLLOWER_H

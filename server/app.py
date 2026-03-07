@@ -285,8 +285,10 @@ def create_task():
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
 
+    crossroad_backward_ms = int(data.get("crossroad_backward_ms") or 0)
+
     # GOTO 명령 구성 (로봇이 target_node로 인식)
-    cmd = {"cmd": "GOTO", "target_node": destination}
+    cmd = {"cmd": "GOTO", "target_node": destination, "crossroad_backward_ms": max(0, crossroad_backward_ms)}
 
     if send_to_robot(robot_id, cmd):
         mark_task_sent(task_id)
@@ -384,22 +386,23 @@ def camera_status():
 
 @app.route("/api/send_path", methods=["POST"])
 def send_path():
-    """경로 직접 전송 (MOVE + path). L=좌회전, R=우회전, U=U턴, S=직진, E=종료"""
+    """경로 직접 전송 (MOVE + path). crossroad_backward_ms: 교차로에서 후진 시간(0=미사용)"""
     data = request.get_json() or request.form
     path = (data.get("path") or "").strip().upper()
+    crossroad_backward_ms = int(data.get("crossroad_backward_ms") or 0)
     robot_id = (data.get("robot_id") or "R01").strip() or None
 
     if not path:
         return jsonify({"ok": False, "error": "경로를 입력하세요. (예: SE, LRS, 12345)"}), 400
 
-    valid_chars = set("LRUSE12345")
+    valid_chars = set("LRUSEB123456")
     if not all(c in valid_chars for c in path):
         return jsonify({
             "ok": False,
-            "error": "유효하지 않은 문자. L,R,U,S,E 또는 1,2,3,4,5 만 사용",
+            "error": "유효하지 않은 문자. L,R,U,S,E,B 또는 1,2,3,4,5,6 만 사용",
         }), 400
 
-    cmd = {"cmd": "MOVE", "path": path}
+    cmd = {"cmd": "MOVE", "path": path, "crossroad_backward_ms": max(0, crossroad_backward_ms)}
     if send_to_robot(robot_id, cmd):
         return jsonify({"ok": True, "message": f"경로 '{path}' 전송 완료"})
     return jsonify({

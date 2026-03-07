@@ -63,6 +63,56 @@ void MotorController::goForward() {
     analogWrite(PIN_ENB, _speedForward);
 }
 
+void MotorController::goBackward() {
+    // 좌·우 모터 모두 후진
+    digitalWrite(PIN_IN1, LOW);
+    digitalWrite(PIN_IN2, HIGH);
+    digitalWrite(PIN_IN3, LOW);
+    digitalWrite(PIN_IN4, HIGH);
+    analogWrite(PIN_ENA, _speedForward);
+    analogWrite(PIN_ENB, _speedForward);
+}
+
+void MotorController::goBackwardLeftSoft() {
+    // 후진 + 좌측 보정 (라인이 왼쪽에 감지 → 좌축 느리게)
+    digitalWrite(PIN_IN1, LOW);
+    digitalWrite(PIN_IN2, HIGH);
+    digitalWrite(PIN_IN3, LOW);
+    digitalWrite(PIN_IN4, HIGH);
+    analogWrite(PIN_ENA, _speedSoftSlow);
+    analogWrite(PIN_ENB, _speedSoft);
+}
+
+void MotorController::goBackwardRightSoft() {
+    // 후진 + 우측 보정 (라인이 오른쪽에 감지 → 우축 느리게)
+    digitalWrite(PIN_IN1, LOW);
+    digitalWrite(PIN_IN2, HIGH);
+    digitalWrite(PIN_IN3, LOW);
+    digitalWrite(PIN_IN4, HIGH);
+    analogWrite(PIN_ENA, _speedSoft);
+    analogWrite(PIN_ENB, _speedSoftSlow);
+}
+
+void MotorController::goBackwardLeftHard() {
+    // 후진 + 급격한 좌측 보정
+    digitalWrite(PIN_IN1, LOW);
+    digitalWrite(PIN_IN2, HIGH);
+    digitalWrite(PIN_IN3, LOW);
+    digitalWrite(PIN_IN4, HIGH);
+    analogWrite(PIN_ENA, _speedSoftSlow);
+    analogWrite(PIN_ENB, _speedHard);
+}
+
+void MotorController::goBackwardRightHard() {
+    // 후진 + 급격한 우측 보정
+    digitalWrite(PIN_IN1, LOW);
+    digitalWrite(PIN_IN2, HIGH);
+    digitalWrite(PIN_IN3, LOW);
+    digitalWrite(PIN_IN4, HIGH);
+    analogWrite(PIN_ENA, _speedHard);
+    analogWrite(PIN_ENB, _speedSoftSlow);
+}
+
 void MotorController::turnLeftSoft() {
     // 좌측 느리게, 우측 빠르게 → 좌회전
     digitalWrite(PIN_IN1, HIGH);

@@ -21,6 +21,7 @@ LineFollower::LineFollower(MotorController& motor)
     , _currentDir(0)
     , _pathNodeCount(0)
     , _s1(0), _s2(0), _s3(0), _s4(0), _s5(0)
+    , _crossroadBackwardMs(0)
 {
     for (int i = 0; i < 16; i++) _pathNodeSeq[i] = -1;
 }
@@ -63,6 +64,7 @@ PathCommand LineFollower::charToPathCommand(char c) const {
         case 'U': return PathCommand::UTURN;
         case 'S': return PathCommand::STRAIGHT;
         case 'E': return PathCommand::END;
+        case 'B': return PathCommand::BACKWARD;
         default:  return PathCommand::NONE;
     }
 }
@@ -154,10 +156,10 @@ void LineFollower::executeCrossroadCommand() {
         return;
     }
 
-    // 다음 명령 가져오기 (숫자 1-5 또는 문자 LRUSE)
+    // 다음 명령 가져오기 (숫자 1-6 또는 문자 LRUSEB)
     char pathChar = _pathString.charAt(_currentStep);
     PathCommand cmd;
-    if (pathChar >= '1' && pathChar <= '5') {
+    if (pathChar >= '1' && pathChar <= '6') {
         cmd = static_cast<PathCommand>(pathChar - '0');
     } else {
         cmd = charToPathCommand(pathChar);
@@ -182,7 +184,7 @@ void LineFollower::executeCrossroadCommand() {
             _motor.goForward();
             delay(150);
             _motor.turnLeftHard();
-            delay(250);
+            delay(260);
             waitForLineAfterLeft();
             break;
 
@@ -197,7 +199,7 @@ void LineFollower::executeCrossroadCommand() {
             _motor.goForward();
             delay(150);
             _motor.turnRightHard();
-            delay(250);
+            delay(260);
             waitForLineAfterRight();
             break;
 
@@ -212,7 +214,7 @@ void LineFollower::executeCrossroadCommand() {
             _motor.goForward();
             delay(150);
             _motor.uTurnRight();
-            delay(250);
+            delay(260);
             waitForLineAfterUturn();
             break;
 
@@ -226,6 +228,20 @@ void LineFollower::executeCrossroadCommand() {
             _motor.goForward();
             delay(300);
             break;
+
+        case PathCommand::BACKWARD: {
+            unsigned int backMs = _crossroadBackwardMs > 0 ? _crossroadBackwardMs : 300;
+            Serial.printf("[LineFollower] ⬇️ 후진 %ums (라인 추종)\n", backMs);
+            unsigned long startMs = millis();
+            while (millis() - startMs < backMs) {
+                _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
+                followLineBackward(_s1, _s2, _s3, _s4, _s5);
+                delay(10);
+            }
+            _motor.stop();
+            delay(200);
+            break;
+        }
 
         default:
             Serial.printf("[LineFollower] ⚠️ 알 수 없는 명령: %c\n", pathChar);
@@ -268,6 +284,23 @@ void LineFollower::followLine(int s1, int s2, int s3, int s4, int s5) {
     // 라인 이탈
     else {
         _state = RobotState::OUT_OF_LINE;
+        _motor.stop();
+    }
+}
+
+void LineFollower::followLineBackward(int s1, int s2, int s3, int s4, int s5) {
+    // 전진과 동일한 센서→보정 로직, 후진 모터 명령 사용
+    if (s3 == 1 && s1 == 0 && s5 == 0) {
+        _motor.goBackward();
+    } else if (s2 == 1 && s1 == 0) {
+        _motor.goBackwardLeftSoft();
+    } else if (s4 == 1 && s5 == 0) {
+        _motor.goBackwardRightSoft();
+    } else if (s1 == 1) {
+        _motor.goBackwardLeftHard();
+    } else if (s5 == 1) {
+        _motor.goBackwardRightHard();
+    } else {
         _motor.stop();
     }
 }

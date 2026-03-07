@@ -292,8 +292,10 @@ void RobotNetworkManager::handleMove(JsonDocument& doc) {
     // 경로 기반 이동 (path 필드가 있는 경우)
     if (doc.containsKey("path")) {
         const char* path = doc["path"];
-        Serial.printf("[RobotNetworkManager] 경로 이동 명령 수신 → 경로: %s\n", path);
+        unsigned int backMs = doc["crossroad_backward_ms"] | 0;
+        Serial.printf("[RobotNetworkManager] 경로 이동 명령 수신 → 경로: %s, 교차로후진: %ums\n", path, backMs);
 
+        _lineFollower.setCrossroadBackwardMs(backMs);
         _lineFollower.setPath(path);
         _lineFollower.start();
 
@@ -350,10 +352,12 @@ void RobotNetworkManager::handleGoto(JsonDocument& doc) {
     int nodeCount = 0;
     for (int i = 0; i < 16 && nodeSeq[i] >= 0; i++) nodeCount++;
 
+    unsigned int backMs = doc["crossroad_backward_ms"] | 0;
+    _lineFollower.setCrossroadBackwardMs(backMs);
     _lineFollower.setPath(String(pathBuf), nodeSeq, nodeCount);
     _lineFollower.start();
 
-    Serial.printf("[RobotNetworkManager] GOTO %d → 경로: %s\n", targetIdx, pathBuf);
+    Serial.printf("[RobotNetworkManager] GOTO %d → 경로: %s, 교차로후진: %ums\n", targetIdx, pathBuf, backMs);
     sendResponse("SUCCESS", "GOTO 경로 추종 시작");
 }
 

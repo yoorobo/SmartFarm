@@ -32,6 +32,18 @@ public:
     /** @brief 직진 */
     void goForward();
 
+    /** @brief 후진 */
+    void goBackward();
+
+    /** @brief 후진 + 라인 추종 (좌측 보정: 좌축 느리게) */
+    void goBackwardLeftSoft();
+    /** @brief 후진 + 라인 추종 (우측 보정: 우축 느리게) */
+    void goBackwardRightSoft();
+    /** @brief 후진 + 라인 추종 (급격한 좌측 보정) */
+    void goBackwardLeftHard();
+    /** @brief 후진 + 라인 추종 (급격한 우측 보정) */
+    void goBackwardRightHard();
+
     /** @brief 부드러운 좌회전 (한쪽 바퀴만 구동) */
     void turnLeftSoft();
 

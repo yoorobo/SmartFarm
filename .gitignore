@@ -114,3 +114,8 @@ libraries/
 .env
 .env.local
 .env.production
+
+# Wi-Fi 설정 ( .env → scripts/update_wifi_config.py 로 생성, 커밋 제외)
+config/wifi_config.h
+esp32-cam/wifi_config.h
+robot-firmware/wifi_config.h
