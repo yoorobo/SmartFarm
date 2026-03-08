@@ -158,6 +158,15 @@
         <h1>스마트팜 운반차 제어</h1>
         <p class="sub">목적지를 선택하면 운반차가 해당 노드로 이동합니다.</p>
 
+        <div class="card" style="border-left:3px solid var(--accent)">
+            <h2 style="font-size:1rem;margin-top:0;margin-bottom:0.5rem">현재 위치</h2>
+            <div id="currentPosition">
+                <span id="currentPosNode">노드: 수신 대기...</span><br>
+                <span id="currentPosDir" style="color:#8b949e;font-size:0.9rem">방향: -</span> ·
+                <span id="currentPosState" style="color:#8b949e;font-size:0.9rem">상태: -</span>
+            </div>
+        </div>
+
         <div class="card">
             <label for="destination">목적지 노드</label>
             <select id="destination">
@@ -175,7 +184,7 @@
 
         <div class="card">
             <label for="pathInput">경로 직접 입력</label>
-            <input type="text" id="pathInput" placeholder="예: BSE, LRS (L=좌 R=우 U=U턴 S=직진 B=후진 E=종료)" maxlength="32"
+            <input type="text" id="pathInput" placeholder="예: LRS, LBRFSE (L/R/U/S=회전+전진, LB/RB/UB/SB=회전+후진, B=후진, E=종료)" maxlength="32"
                 style="width:100%;padding:0.6rem 0.8rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:1rem;margin-bottom:0.5rem" />
             <label for="pathBackward" style="margin-top:0.4rem">B 사용 시 후진 시간 (ms, 0=300 기본)</label>
             <input type="number" id="pathBackward" min="0" max="2000" value="0" step="100"
@@ -188,6 +197,10 @@
                 <button type="button" class="path-btn" data-path="BSE">BSE</button>
                 <button type="button" class="path-btn" data-path="L">L</button>
                 <button type="button" class="path-btn" data-path="R">R</button>
+                <button type="button" class="path-btn" data-path="LB">LB</button>
+                <button type="button" class="path-btn" data-path="RB">RB</button>
+                <button type="button" class="path-btn" data-path="UB">UB</button>
+                <button type="button" class="path-btn" data-path="SB">SB</button>
                 <button type="button" class="path-btn" data-path="LRS">LRS</button>
                 <button type="button" class="path-btn" data-path="RSE">RSE</button>
             </div>
@@ -256,6 +269,9 @@
         const locMsg = document.getElementById('locMsg');
         const robotStatus = document.getElementById('robotStatus');
         const robotStateEl = document.getElementById('robotState');
+        const currentPosNode = document.getElementById('currentPosNode');
+        const currentPosDir = document.getElementById('currentPosDir');
+        const currentPosState = document.getElementById('currentPosState');
         const taskList = document.getElementById('taskList');
         const cameraStream = document.getElementById('cameraStream');
         const cameraPlaceholder = document.getElementById('cameraPlaceholder');
@@ -291,20 +307,32 @@
                 .catch(() => { robotStatus.textContent = '연결된 로봇: 확인 실패'; });
         }
 
+        const DIR_NAMES = ['N (북)', 'E (동)', 'S (남)', 'W (서)'];
         function loadRobotState() {
             fetch('/api/robot_state')
                 .then(r => r.json())
                 .then(d => {
                     if (!d.ok || !d.state) {
                         robotStateEl.innerHTML = '상태: 수신 대기 중...';
+                        currentPosNode.textContent = '노드: 수신 대기...';
+                        currentPosDir.textContent = '방향: -';
+                        currentPosState.textContent = '상태: -';
                         return;
                     }
                     const s = d.state;
                     const nodeStr = s.node_name !== '-' ? s.node_name : '미지정';
                     const arrivedStr = s.arrived ? '<span style="color:var(--success)">도착</span>' : '<span style="color:#8b949e">이동 중</span>';
                     robotStateEl.innerHTML = `현재 노드: <strong>${nodeStr}</strong> · ${arrivedStr}`;
+                    currentPosNode.innerHTML = '노드: <strong>' + nodeStr + '</strong>';
+                    currentPosDir.textContent = '방향: ' + (typeof s.dir === 'number' && s.dir >= 0 && s.dir <= 3 ? DIR_NAMES[s.dir] : '-');
+                    currentPosState.textContent = '상태: ' + (s.arrived ? '도착' : '이동 중');
                 })
-                .catch(() => { robotStateEl.textContent = '상태: 조회 실패'; });
+                .catch(() => {
+                    robotStateEl.textContent = '상태: 조회 실패';
+                    currentPosNode.textContent = '노드: 조회 실패';
+                    currentPosDir.textContent = '방향: -';
+                    currentPosState.textContent = '상태: -';
+                });
         }
 
         function loadCameraStatus() {

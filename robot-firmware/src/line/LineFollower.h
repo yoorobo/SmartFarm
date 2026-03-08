@@ -130,9 +130,15 @@ public:
      * @brief 위치 수동 설정 (SET_LOC 명령용).
      * @param nodeIdx  노드 인덱스 (0~15)
      * @param dir      방향 (0~3)
-     * @param nodeName 노드 이름 (예: "a01"), nullptr이면 "n"+인덱스
+     * @param nodeName 노드 이름 (예: "a01"), nullptr이면 실제 노드명(getRealNodeName) 참조
      */
     void setLocation(int nodeIdx, int dir, const char* nodeName = nullptr);
+
+    /**
+     * @brief 노드 인덱스에 매칭되는 실제 이름 문자열 반환 (예: 0 -> "a01")
+     * @param nodeIdx 노드 인덱스 (0~15)
+     */
+    String getRealNodeName(int nodeIdx) const;
 
     // ─────────── 센서 값 조회 ───────────
 

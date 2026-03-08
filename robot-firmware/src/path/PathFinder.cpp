@@ -37,45 +37,40 @@ void PathFinder::initGraph() {
         _nodes[i].edgeCount = 0;
     }
 
-    // 메인: 1-2-3-4 (a01-a02-a03-a04)
+    // 메인: 1-2-3-4 (a01-a02-a03-a04) - 입고부터 출고까지 직진 (동서)
+    // 0=N, 1=E, 2=S, 3=W
     addGraphEdge(_nodes, 0, 1, 1); addGraphEdge(_nodes, 1, 0, 3);
     addGraphEdge(_nodes, 1, 2, 1); addGraphEdge(_nodes, 2, 1, 3);
     addGraphEdge(_nodes, 2, 3, 1); addGraphEdge(_nodes, 3, 2, 3);
 
-    // 2↔6 (a02↔s06)
+    // ================= 상단 보관 구역 (S-Zone) =================
+    // a02(1) ↔ s06(5) : a02에서 북쪽(0)으로 분기
     addGraphEdge(_nodes, 1, 5, 0); addGraphEdge(_nodes, 5, 1, 2);
 
-    // 상부 5-6-7 (s05-s06-s07)
-    addGraphEdge(_nodes, 4, 5, 1); addGraphEdge(_nodes, 5, 4, 3);
+    // s05(4) - s06(5) - s07(6) : 좌우 갈림길 (서-동)
+    addGraphEdge(_nodes, 5, 4, 3); addGraphEdge(_nodes, 4, 5, 1);
     addGraphEdge(_nodes, 5, 6, 1); addGraphEdge(_nodes, 6, 5, 3);
 
-    // 5↔11, 6↔12, 7↔13 (s05↔s11, s06↔s12, s07↔s13)
+    // 각 경유지에서 위(북쪽) 셀로 들어감: s05↔s11(10), s06↔s12(11), s07↔s13(12)
     addGraphEdge(_nodes, 4, 10, 0); addGraphEdge(_nodes, 10, 4, 2);
     addGraphEdge(_nodes, 5, 11, 0); addGraphEdge(_nodes, 11, 5, 2);
     addGraphEdge(_nodes, 6, 12, 0); addGraphEdge(_nodes, 12, 6, 2);
 
-    // 상부 11-12-13 (s11-s12-s13)
-    addGraphEdge(_nodes, 10, 11, 1); addGraphEdge(_nodes, 11, 10, 3);
-    addGraphEdge(_nodes, 11, 12, 1); addGraphEdge(_nodes, 12, 11, 3);
-
-    // 3↔9 (a03↔r09) - a03은 r09만 연결
+    // ================= 하단 보관 구역 (R-Zone) =================
+    // a03(2) ↔ r09(8) : a03에서 남쪽(2)으로 분기
     addGraphEdge(_nodes, 2, 8, 2); addGraphEdge(_nodes, 8, 2, 0);
 
-    // 하부 8-9-10 (r08-r09-r10)
-    addGraphEdge(_nodes, 7, 8, 1); addGraphEdge(_nodes, 8, 7, 3);
+    // r08(7) - r09(8) - r10(9) : 좌우 갈림길 (서-동)
+    addGraphEdge(_nodes, 8, 7, 3); addGraphEdge(_nodes, 7, 8, 1);
     addGraphEdge(_nodes, 8, 9, 1); addGraphEdge(_nodes, 9, 8, 3);
 
-    // 8↔14, 9↔15, 10↔16 (r08↔r14, r09↔r15, r10↔r16)
+    // 각 경유지에서 아래(남쪽) 셀로 들어감: r08↔r14(13), r09↔r15(14), r10↔r16(15)
     addGraphEdge(_nodes, 7, 13, 2); addGraphEdge(_nodes, 13, 7, 0);
     addGraphEdge(_nodes, 8, 14, 2); addGraphEdge(_nodes, 14, 8, 0);
     addGraphEdge(_nodes, 9, 15, 2); addGraphEdge(_nodes, 15, 9, 0);
 
-    // 하부 14-15-16 (r14-r15-r16)
-    addGraphEdge(_nodes, 13, 14, 1); addGraphEdge(_nodes, 14, 13, 3);
-    addGraphEdge(_nodes, 14, 15, 1); addGraphEdge(_nodes, 15, 14, 3);
-
     _initialized = true;
-    Serial.println("[PathFinder] 그래프 초기화 완료");
+    Serial.println("[PathFinder] 그래프 초기화 완료 (S/R Zone 레이아웃 적용)");
 }
 
 char PathFinder::dirDiffToChar(int currentDir, int targetDir) const {

@@ -17,9 +17,10 @@
 
 MotorController::MotorController()
     : _speedForward(150)
-    , _speedSoft(200)
-    , _speedHard(150)
-    , _speedSoftSlow(120)   // 부드러운 회전 시 느린 쪽 모터 속도
+    , _speedSoft(160)
+    , _speedHard(180)
+    , _speedSoftSlow(150)   // 부드러운 회전 시 느린 쪽 모터 속도
+    , _speedBackwardSoftSlow(140)  // 후진 라인 추종 보정 시 느린 쪽 (80~120 조정)
 {
 }
 
@@ -74,23 +75,23 @@ void MotorController::goBackward() {
 }
 
 void MotorController::goBackwardLeftSoft() {
-    // 후진 + 좌측 보정 (라인이 왼쪽에 감지 → 좌축 느리게)
+    // 후진 + 좌측 보정 (라인이 왼쪽에 감지 → 우측 바퀴 정지, 좌측만 후진)
     digitalWrite(PIN_IN1, LOW);
     digitalWrite(PIN_IN2, HIGH);
     digitalWrite(PIN_IN3, LOW);
-    digitalWrite(PIN_IN4, HIGH);
-    analogWrite(PIN_ENA, _speedSoftSlow);
-    analogWrite(PIN_ENB, _speedSoft);
+    digitalWrite(PIN_IN4, LOW);   // 우측 모터 정지 (L298N IN3/4 LOW)
+    analogWrite(PIN_ENA, _speedSoft);
+    analogWrite(PIN_ENB, 0);      // 우측 모터 정지
 }
 
 void MotorController::goBackwardRightSoft() {
-    // 후진 + 우측 보정 (라인이 오른쪽에 감지 → 우축 느리게)
+    // 후진 + 우측 보정 (라인이 오른쪽에 감지 → 좌측 바퀴 정지, 우측만 후진)
     digitalWrite(PIN_IN1, LOW);
-    digitalWrite(PIN_IN2, HIGH);
+    digitalWrite(PIN_IN2, LOW);   // 좌측 모터 정지 (L298N IN1/2 LOW)
     digitalWrite(PIN_IN3, LOW);
     digitalWrite(PIN_IN4, HIGH);
-    analogWrite(PIN_ENA, _speedSoft);
-    analogWrite(PIN_ENB, _speedSoftSlow);
+    analogWrite(PIN_ENA, 0);      // 좌측 모터 정지
+    analogWrite(PIN_ENB, _speedSoft);
 }
 
 void MotorController::goBackwardLeftHard() {
@@ -99,7 +100,7 @@ void MotorController::goBackwardLeftHard() {
     digitalWrite(PIN_IN2, HIGH);
     digitalWrite(PIN_IN3, LOW);
     digitalWrite(PIN_IN4, HIGH);
-    analogWrite(PIN_ENA, _speedSoftSlow);
+    analogWrite(PIN_ENA, _speedBackwardSoftSlow);
     analogWrite(PIN_ENB, _speedHard);
 }
 
@@ -110,27 +111,27 @@ void MotorController::goBackwardRightHard() {
     digitalWrite(PIN_IN3, LOW);
     digitalWrite(PIN_IN4, HIGH);
     analogWrite(PIN_ENA, _speedHard);
-    analogWrite(PIN_ENB, _speedSoftSlow);
+    analogWrite(PIN_ENB, _speedBackwardSoftSlow);
 }
 
 void MotorController::turnLeftSoft() {
-    // 좌측 느리게, 우측 빠르게 → 좌회전
-    digitalWrite(PIN_IN1, HIGH);
+    // 우측만 빠르게, 좌측 정지 → 부드러운 좌회전 보정
+    digitalWrite(PIN_IN1, LOW);   // 좌측 모터 정지
     digitalWrite(PIN_IN2, LOW);
     digitalWrite(PIN_IN3, HIGH);
     digitalWrite(PIN_IN4, LOW);
-    analogWrite(PIN_ENA, _speedSoftSlow);
+    analogWrite(PIN_ENA, 0);      // 좌측 모터 속도 0
     analogWrite(PIN_ENB, _speedSoft);
 }
 
 void MotorController::turnRightSoft() {
-    // 좌측 빠르게, 우측 느리게 → 우회전
+    // 좌측만 빠르게, 우측 정지 → 부드러운 우회전 보정
     digitalWrite(PIN_IN1, HIGH);
     digitalWrite(PIN_IN2, LOW);
-    digitalWrite(PIN_IN3, HIGH);
+    digitalWrite(PIN_IN3, LOW);   // 우측 모터 정지
     digitalWrite(PIN_IN4, LOW);
     analogWrite(PIN_ENA, _speedSoft);
-    analogWrite(PIN_ENB, _speedSoftSlow);
+    analogWrite(PIN_ENB, 0);      // 우측 모터 속도 0
 }
 
 void MotorController::turnLeftHard() {
