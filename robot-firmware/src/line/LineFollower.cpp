@@ -22,6 +22,11 @@ LineFollower::LineFollower(MotorController& motor)
     , _pathNodeCount(0)
     , _s1(0), _s2(0), _s3(0), _s4(0), _s5(0)
     , _crossroadBackwardMs(0)
+    , _isBackwardUntilCrossroad(false)
+    , _backwardStartedOnCross(false)
+    , _backwardPhase(0)
+    , _backwardStartTime(0)
+    , _backwardStepDelta(0)
 {
     for (int i = 0; i < 16; i++) _pathNodeSeq[i] = -1;
 }
@@ -112,13 +117,50 @@ void LineFollower::stop() {
 // ============================================================
 
 void LineFollower::update() {
-    // 센서 읽기
+    // 센서 읽기 (전진/후진 공통 - 매 사이클마다)
     _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
 
     // 주행 중이 아니면 대기
     if (!_isRunning) {
         _state = RobotState::IDLE;
         _motor.stop();
+        _isBackwardUntilCrossroad = false;
+        return;
+    }
+
+    // 후진 모드: 전진과 동일하게 매 사이클마다 followLineBackward 보정
+    if (_isBackwardUntilCrossroad) {
+        _state = RobotState::BACKWARD;
+        const unsigned long SAFETY_MS = 15000;
+
+        if (_backwardPhase == 0) {
+            // B 전용: 최소 후진 시간
+            unsigned int exitMs = _crossroadBackwardMs > 0 ? _crossroadBackwardMs : 400;
+            if (millis() - _backwardStartTime < exitMs) {
+                followLineBackward(_s1, _s2, _s3, _s4, _s5);
+                return;
+            }
+            _backwardPhase = 1;
+        }
+        if (_backwardPhase == 1) {
+            // 교차로 탈출 (LB/RB/UB/SB: 교차로 위에 남아 있을 수 있음)
+            if (detectCrossroad(_s1, _s2, _s3, _s4, _s5)) {
+                followLineBackward(_s1, _s2, _s3, _s4, _s5);
+                return;
+            }
+            Serial.println("[LineFollower] 후진 (다음 교차로까지)");
+            _backwardPhase = 2;
+        }
+        if (_backwardPhase == 2) {
+            if (detectCrossroad(_s1, _s2, _s3, _s4, _s5) || (millis() - _backwardStartTime >= SAFETY_MS)) {
+                _motor.stop();
+                delay(200);
+                _isBackwardUntilCrossroad = false;
+                _currentStep += _backwardStepDelta;
+                return;
+            }
+            followLineBackward(_s1, _s2, _s3, _s4, _s5);
+        }
         return;
     }
 
@@ -145,6 +187,17 @@ void LineFollower::update() {
     followLine(_s1, _s2, _s3, _s4, _s5);
 
     delay(5);
+}
+
+// ============================================================
+//  후진 - 다음 교차로까지
+// ============================================================
+
+void LineFollower::runBackwardUntilCrossroad(bool startedOnCross) {
+    _isBackwardUntilCrossroad = true;
+    _backwardStartedOnCross = startedOnCross;
+    _backwardStartTime = millis();
+    _backwardPhase = startedOnCross ? 0 : 1;  // B: 0부터, LB/RB/UB/SB: 1(교차로 탈출)부터
 }
 
 // ============================================================
@@ -211,17 +264,19 @@ void LineFollower::executeCrossroadCommand() {
             delay(500);
             waitForLineAfterLeft();
             if (doBackward) {
-                unsigned int backMs = _crossroadBackwardMs > 0 ? _crossroadBackwardMs : 300;
-                Serial.printf("[LineFollower] ⬇️ 후진 %ums (라인 추종)\n", backMs);
-                unsigned long startMs = millis();
-                while (millis() - startMs < backMs) {
+                _motor.stop();
+                delay(150);
+                // 교차로 탈출 + 선 위 안착 후 후진 (선 무시 방지)
+                _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
+                unsigned long t0 = millis();
+                while (detectCrossroad(_s1, _s2, _s3, _s4, _s5) && (millis() - t0 < 2000)) {
                     _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                    followLineBackward(_s1, _s2, _s3, _s4, _s5);
+                    followLine(_s1, _s2, _s3, _s4, _s5);
                     delay(5);
                 }
-                _motor.stop();
-                delay(200);
-                stepDelta = 2;
+                runBackwardUntilCrossroad(false);
+                _backwardStepDelta = 2;
+                stepDelta = 0;
             }
             break;
         }
@@ -242,17 +297,18 @@ void LineFollower::executeCrossroadCommand() {
             delay(500);
             waitForLineAfterRight();
             if (doBackward) {
-                unsigned int backMs = _crossroadBackwardMs > 0 ? _crossroadBackwardMs : 300;
-                Serial.printf("[LineFollower] ⬇️ 후진 %ums (라인 추종)\n", backMs);
-                unsigned long startMs = millis();
-                while (millis() - startMs < backMs) {
+                _motor.stop();
+                delay(150);
+                _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
+                unsigned long t0 = millis();
+                while (detectCrossroad(_s1, _s2, _s3, _s4, _s5) && (millis() - t0 < 2000)) {
                     _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                    followLineBackward(_s1, _s2, _s3, _s4, _s5);
+                    followLine(_s1, _s2, _s3, _s4, _s5);
                     delay(5);
                 }
-                _motor.stop();
-                delay(200);
-                stepDelta = 2;
+                runBackwardUntilCrossroad(false);
+                _backwardStepDelta = 2;
+                stepDelta = 0;
             }
             break;
         }
@@ -273,17 +329,18 @@ void LineFollower::executeCrossroadCommand() {
             delay(350);
             waitForLineAfterUturn();
             if (doBackward) {
-                unsigned int backMs = _crossroadBackwardMs > 0 ? _crossroadBackwardMs : 300;
-                Serial.printf("[LineFollower] ⬇️ 후진 %ums (라인 추종)\n", backMs);
-                unsigned long startMs = millis();
-                while (millis() - startMs < backMs) {
+                _motor.stop();
+                delay(150);
+                _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
+                unsigned long t0 = millis();
+                while (detectCrossroad(_s1, _s2, _s3, _s4, _s5) && (millis() - t0 < 2000)) {
                     _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                    followLineBackward(_s1, _s2, _s3, _s4, _s5);
+                    followLine(_s1, _s2, _s3, _s4, _s5);
                     delay(5);
                 }
-                _motor.stop();
-                delay(200);
-                stepDelta = 2;
+                runBackwardUntilCrossroad(false);
+                _backwardStepDelta = 2;
+                stepDelta = 0;
             }
             break;
         }
@@ -300,32 +357,24 @@ void LineFollower::executeCrossroadCommand() {
             _motor.goForward();
             delay(300);
             if (doBackward) {
-                unsigned int backMs = _crossroadBackwardMs > 0 ? _crossroadBackwardMs : 300;
-                Serial.printf("[LineFollower] ⬇️ 후진 %ums (라인 추종)\n", backMs);
-                unsigned long startMs = millis();
-                while (millis() - startMs < backMs) {
+                _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
+                unsigned long t0 = millis();
+                while (detectCrossroad(_s1, _s2, _s3, _s4, _s5) && (millis() - t0 < 2000)) {
                     _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                    followLineBackward(_s1, _s2, _s3, _s4, _s5);
+                    followLine(_s1, _s2, _s3, _s4, _s5);
                     delay(5);
                 }
-                _motor.stop();
-                delay(200);
-                stepDelta = 2;
+                runBackwardUntilCrossroad(false);
+                _backwardStepDelta = 2;
+                stepDelta = 0;
             }
             break;
         }
 
         case PathCommand::BACKWARD: {
-            unsigned int backMs = _crossroadBackwardMs > 0 ? _crossroadBackwardMs : 300;
-            Serial.printf("[LineFollower] ⬇️ 후진 %ums (라인 추종)\n", backMs);
-            unsigned long startMs = millis();
-            while (millis() - startMs < backMs) {
-                _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                followLineBackward(_s1, _s2, _s3, _s4, _s5);
-                delay(5);
-            }
-            _motor.stop();
-            delay(200);
+            runBackwardUntilCrossroad(true);
+            _backwardStepDelta = 1;
+            stepDelta = 0;
             break;
         }
 
@@ -342,8 +391,8 @@ void LineFollower::executeCrossroadCommand() {
 // ============================================================
 
 void LineFollower::followLine(int s1, int s2, int s3, int s4, int s5) {
-    // 중앙 센서만 감지: 직진
-    if (s3 == 1 && s1 == 0 && s5 == 0) {
+    // 중앙 센서만 감지 (s2, s4 없음): 직진
+    if (s3 == 1 && s1 == 0 && s2 == 0 && s4 == 0 && s5 == 0) {
         _state = RobotState::FORWARD;
         _motor.goForward();
     }
@@ -379,20 +428,19 @@ void LineFollower::followLine(int s1, int s2, int s3, int s4, int s5) {
 }
 
 void LineFollower::followLineBackward(int s1, int s2, int s3, int s4, int s5) {
-    // 전진과 동일한 센서→보정 로직, 후진 모터 명령 사용
-    if (s3 == 1 && s1 == 0 && s5 == 0) {
-        _motor.goBackward();
+    if (s3 == 1 && s1 == 0 && s2 == 0 && s4 == 0 && s5 == 0) {
+        _motor.goBackward();  // 좌우 모두 후진
     } else if (s2 == 1 && s1 == 0) {
-        _motor.goBackwardLeftSoft();
+        _motor.goBackwardRightSoft();   // 좌측 모터만 후진, 우측 정지
         delay(3);
     } else if (s4 == 1 && s5 == 0) {
-        _motor.goBackwardRightSoft();
+        _motor.goBackwardLeftSoft();    // 우측 모터만 후진, 좌측 정지
         delay(3);
     } else if (s1 == 1) {
-        _motor.goBackwardLeftHard();
+        _motor.goBackwardRightHard();   // 좌측 느리게, 우측 빠르게 후진
         delay(3);
     } else if (s5 == 1) {
-        _motor.goBackwardRightHard();
+        _motor.goBackwardLeftHard();    // 좌측 빠르게, 우측 느리게 후진
         delay(3);
     } else {
         _motor.stop();

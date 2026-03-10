@@ -75,23 +75,23 @@ void MotorController::goBackward() {
 }
 
 void MotorController::goBackwardLeftSoft() {
-    // 후진 + 좌측 보정 (라인이 왼쪽에 감지 → 우측 바퀴 정지, 좌측만 후진)
+    // 후진 + 좌측 보정 (라인이 왼쪽에 감지 → 좌측 바퀴 정지, 우측만 후진)
     digitalWrite(PIN_IN1, LOW);
-    digitalWrite(PIN_IN2, HIGH);
+    digitalWrite(PIN_IN2, LOW);   // 좌측 모터 정지 (L298N IN1/2 LOW)
+    digitalWrite(PIN_IN3, LOW);
+    digitalWrite(PIN_IN4, HIGH);  // 우측 후진
+    analogWrite(PIN_ENA, 0);      // 좌측 모터 정지
+    analogWrite(PIN_ENB, _speedSoft);
+}
+
+void MotorController::goBackwardRightSoft() {
+    // 후진 + 우측 보정 (라인이 오른쪽에 감지 → 우측 바퀴 정지, 좌측만 후진)
+    digitalWrite(PIN_IN1, LOW);
+    digitalWrite(PIN_IN2, HIGH);  // 좌측 후진
     digitalWrite(PIN_IN3, LOW);
     digitalWrite(PIN_IN4, LOW);   // 우측 모터 정지 (L298N IN3/4 LOW)
     analogWrite(PIN_ENA, _speedSoft);
     analogWrite(PIN_ENB, 0);      // 우측 모터 정지
-}
-
-void MotorController::goBackwardRightSoft() {
-    // 후진 + 우측 보정 (라인이 오른쪽에 감지 → 좌측 바퀴 정지, 우측만 후진)
-    digitalWrite(PIN_IN1, LOW);
-    digitalWrite(PIN_IN2, LOW);   // 좌측 모터 정지 (L298N IN1/2 LOW)
-    digitalWrite(PIN_IN3, LOW);
-    digitalWrite(PIN_IN4, HIGH);
-    analogWrite(PIN_ENA, 0);      // 좌측 모터 정지
-    analogWrite(PIN_ENB, _speedSoft);
 }
 
 void MotorController::goBackwardLeftHard() {

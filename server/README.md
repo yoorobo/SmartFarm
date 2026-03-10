@@ -34,9 +34,12 @@ python app.py
 - 로봇 TCP: 0.0.0.0:8080
 - ESP32-CAM UDP: 0.0.0.0:7070
 
-### 3. 펌웨어 설정 (로봇, ESP32-CAM 공통)
+### 3. 펌웨어 설정 (로봇, ESP32-CAM)
 
-**`config/wifi_config.h`** 한 파일에서 Wi-Fi와 서버 주소를 관리합니다. 이 파일만 수정하면 robot-firmware와 esp32-cam 모두 적용됩니다.
+각 .ino 파일 상단에서 Wi-Fi와 서버 주소를 수정합니다.
+
+- `robot-firmware/robot-firmware.ino`
+- `esp32-cam/esp32-cam.ino`
 
 ```cpp
 #define WIFI_SSID     "YOUR_WIFI_SSID"

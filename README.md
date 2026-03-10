@@ -10,13 +10,8 @@
 
 ```
 iot-repo-4/
-├── .env                     # Wi-Fi, 서버 IP (git 제외, .env.example 복사 후 수정)
+├── .env                     # Wi-Fi, 서버 IP (git 제외, .env.example 참고)
 ├── .env.example             # 설정 템플릿
-├── config/
-│   ├── wifi_config.h        # (git 제외) .env에서 생성
-│   └── wifi_config.h.example # 템플릿
-├── scripts/
-│   └── update_wifi_config.py # .env → wifi_config.h 변환
 │
 ├── server/                  # Flask 웹서버 + 로봇 TCP 브로커 (운반차 제어)
 │   ├── app.py               # Flask 진입점 (웹 UI 5000, TCP 8080)
@@ -86,22 +81,15 @@ python app.py
 - **웹 UI** (또는 노트북 IP:5000)
 - **로봇 TCP**: 0.0.0.0:8080
 
-### Wi-Fi / 서버 IP 설정 (.env)
+### Wi-Fi / 서버 IP 설정
 
-`.env`에서 Wi-Fi SSID, 비밀번호, 서버 IP를 관리합니다. **wifi_config.h는 .gitignore**되어 비밀정보가 저장소에 올라가지 않습니다.
+`robot-firmware/robot-firmware.ino`와 `esp32-cam/esp32-cam.ino` 상단의 `#define`에서 직접 수정합니다.
 
-```bash
-# 최초: .env.example을 .env로 복사 후 편집
-cp .env.example .env
-# .env 수정 (WIFI_SSID, WIFI_PASSWORD, SERVER_IP)
-# 스크립트 실행 → config, esp32-cam, robot-firmware 에 wifi_config.h 생성
-python3 scripts/update_wifi_config.py
+```cpp
+#define WIFI_SSID     "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+#define SERVER_IP     "192.168.0.xxx"
 ```
 
-`.env` 예시:
-```
-WIFI_SSID=YOUR_WIFI_SSID
-WIFI_PASSWORD=YOUR_WIFI_PASSWORD
-SERVER_IP=192.168.0.xxx
-```
+`.env`는 참고용(복사 안 함). 비밀정보는 저장소에 올리지 않습니다.
 

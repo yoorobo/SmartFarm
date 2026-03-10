@@ -31,7 +31,8 @@ enum class RobotState {
     FINDING_UTURN = 9,  // 교차로에서 U턴 진행 중
     PASSING_STRAIGHT = 10, // 교차로 직진 통과
     ARRIVED = 11,       // 목적지 도착 완료
-    OUT_OF_LINE = 12    // 라인 이탈 (정지)
+    OUT_OF_LINE = 12,   // 라인 이탈 (정지)
+    BACKWARD = 13       // 후진 라인 추종 중
 };
 
 /**
@@ -163,6 +164,9 @@ private:
     /** @brief 후진 라인트레이싱 (교차로 후진용) */
     void followLineBackward(int s1, int s2, int s3, int s4, int s5);
 
+    /** @brief 라인 따라 후진하다가 다음 교차로 감지 시 정지 */
+    void runBackwardUntilCrossroad(bool startedOnCross);
+
     /** @brief 좌회전 완료 대기 (라인 안착) */
     void waitForLineAfterLeft();
 
@@ -193,6 +197,13 @@ private:
     int _s1, _s2, _s3, _s4, _s5;
 
     unsigned int _crossroadBackwardMs;  // 교차로에서 후진 시간 (0=미사용)
+
+    // 후진 논블로킹 상태 머신
+    bool _isBackwardUntilCrossroad;
+    bool _backwardStartedOnCross;
+    int _backwardPhase;       // 0=최소 후진(B만), 1=교차로 탈출, 2=다음 교차로까지
+    unsigned long _backwardStartTime;
+    int _backwardStepDelta;
 };
 
 #endif // LINE_FOLLOWER_H

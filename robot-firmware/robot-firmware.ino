@@ -8,14 +8,22 @@
  *   - TCP 명령 수신 (MOVE, TASK, MANUAL)
  *   - 라인트레이싱 경로 추종
  *   - UDP 상태 브로드캐스트
+ *
+ * Wi-Fi / 서버 설정은 아래 #define에서 수동 수정
  */
 
-#include "wifi_config.h"
+// Wi-Fi / 서버 설정 (수동 수정)
+#define WIFI_SSID     "addinedu_201class_4-2.4G"
+#define WIFI_PASSWORD "201class4!"
+#define SERVER_IP     "192.168.0.12"
+#define SERVER_TCP_PORT 8080
+#define SERVER_UDP_PORT 7070
+
 #include <WiFi.h>
 #include "src/comm/RobotNetworkManager.h"
 
 // ============================================================
-//  설정값 (Wi-Fi, 서버 IP는 config/wifi_config.h 에서 관리)
+//  설정값
 // ============================================================
 
 // 로봇 식별자

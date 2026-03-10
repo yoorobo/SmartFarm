@@ -3,10 +3,16 @@
  * - JPEG 캡처 후 UDP로 서버(포트 7070)에 전송
  * - 서버의 웹 UI에서 실시간 확인 가능
  *
- * 설정: config/wifi_config.h 에서 Wi-Fi, 서버 IP 수정
+ * Wi-Fi / 서버 설정은 아래 #define에서 수동 수정
  */
 
-#include "wifi_config.h"
+// Wi-Fi / 서버 설정 (수동 수정)
+#define WIFI_SSID "addinedu_201class_4-2.4G"
+#define WIFI_PASSWORD "201class4!"
+#define SERVER_IP "192.168.0.17"
+#define SERVER_TCP_PORT 8080
+#define SERVER_UDP_PORT 7070
+
 #include "esp_camera.h"
 #include <WiFi.h>
 #include <WiFiUdp.h>
