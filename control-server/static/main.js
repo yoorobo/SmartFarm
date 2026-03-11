@@ -395,11 +395,13 @@ function fetchAgvLogs() {
                     const time = task.created_at ? task.created_at.substring(5, 19).replace('T', ' ') : "-";
                     const statusVal = task.status || task.task_status;
                     const statusLabel = statusVal === 2 || statusVal === 'COMPLETED' ? "완료" : (statusVal === 1 ? "진행중" : "대기");
+                    const src = task.source_node || "-";
                     const dest = task.destination || task.destination_node || "-";
 
                     tbody.innerHTML += `
                         <tr>
                             <td><strong>GOTO</strong> (ID: ${task.id || task.task_id})</td>
+                            <td><span class="badge sys-msg">${src.toUpperCase()}</span></td>
                             <td><span class="badge">${dest.toUpperCase()}</span></td>
                             <td>${statusLabel}</td>
                             <td class="time">${time}</td>

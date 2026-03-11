@@ -94,7 +94,7 @@ def handle_tasks():
             with conn.cursor() as cursor:
                 # 최근 작업 내역 최신순으로 가져오기
                 cursor.execute(
-                    "SELECT task_id, agv_id as robot_id, destination_node, task_status, ordered_at as created_at "
+                    "SELECT task_id, agv_id as robot_id, source_node, destination_node, task_status, ordered_at as created_at "
                     "FROM transport_tasks ORDER BY task_id DESC LIMIT %s", 
                     (limit,)
                 )
