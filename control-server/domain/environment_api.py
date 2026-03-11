@@ -4,6 +4,7 @@
 """
 import psutil
 import time
+import json
 from flask import Blueprint, jsonify, request
 from core.sensor_controller import latest_data, manual_overrides
 
@@ -139,20 +140,25 @@ def get_nursery_logs():
             # 수동 제어 + 센서 샘플을 통합하여 최신순 정렬
             # 간단하게 연산자 로그와 센서 평균 로그를 섞어서 출력
             cursor.execute("""
-                (SELECT 'CONTROL' as type, logged_at as time, 
-                        CONCAT(nc.node_id, ' ', CASE na.actuator_type_id WHEN 1 THEN '밸브' WHEN 2 THEN '팬' ELSE 'LED' END, ' ', state_value) as msg
-                 FROM nursery_actuator_logs nal
-                 JOIN nursery_actuators na ON nal.actuator_id = na.actuator_id
-                 JOIN nursery_controllers nc ON na.controller_id = nc.controller_id
-                 ORDER BY nal.log_id DESC LIMIT %s)
-                UNION ALL
-                (SELECT 'SENSOR' as type, measured_at as time,
-                        CONCAT(nc.node_id, ' 온도:', value, '℃') as msg
-                 FROM nursery_sensor_logs nsl
-                 JOIN nursery_sensors ns ON nsl.sensor_id = ns.sensor_id
-                 JOIN nursery_controllers nc ON ns.controller_id = nc.controller_id
-                 WHERE ns.sensor_type_id = 1
-                 ORDER BY nsl.log_id DESC LIMIT %s)
+                SELECT * FROM (
+                    (SELECT 'CONTROL' as type, logged_at as time, 
+                            CONCAT(nc.node_id, ' ', CASE na.actuator_type_id WHEN 1 THEN '밸브' WHEN 2 THEN '팬' ELSE 'LED' END, ' ', state_value) as msg
+                     FROM nursery_actuator_logs nal
+                     JOIN nursery_actuators na ON nal.actuator_id = na.actuator_id
+                     JOIN nursery_controllers nc ON na.controller_id = nc.controller_id
+                     ORDER BY nal.log_id DESC LIMIT %s)
+                    UNION ALL
+                    (SELECT 'SENSOR' as type, measured_at as time,
+                            CONCAT(nc.node_id, 
+                                   MAX(CASE WHEN ns.sensor_type_id = 1 THEN CONCAT(' 온도:', value, '℃') ELSE '' END),
+                                   MAX(CASE WHEN ns.sensor_type_id = 2 THEN CONCAT(' 습도:', value, '%%') ELSE '' END),
+                                   MAX(CASE WHEN ns.sensor_type_id = 3 THEN CONCAT(' 광량:', value, 'lx') ELSE '' END)) as msg
+                     FROM nursery_sensor_logs nsl
+                     JOIN nursery_sensors ns ON nsl.sensor_id = ns.sensor_id
+                     JOIN nursery_controllers nc ON ns.controller_id = nc.controller_id
+                     GROUP BY nc.node_id, measured_at
+                     ORDER BY measured_at DESC LIMIT %s)
+                ) combined
                 ORDER BY time DESC LIMIT %s
             """, (limit // 2, limit // 2, limit))
             rows = cursor.fetchall()

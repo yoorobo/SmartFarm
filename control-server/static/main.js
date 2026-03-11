@@ -397,12 +397,14 @@ function fetchAgvLogs() {
                     const statusLabel = statusVal === 2 || statusVal === 'COMPLETED' ? "완료" : (statusVal === 1 ? "진행중" : "대기");
                     const src = task.source_node || "-";
                     const dest = task.destination || task.destination_node || "-";
+                    const curr = task.current_location || "-";
 
                     tbody.innerHTML += `
                         <tr>
                             <td><strong>GOTO</strong> (ID: ${task.id || task.task_id})</td>
                             <td><span class="badge sys-msg">${src.toUpperCase()}</span></td>
                             <td><span class="badge">${dest.toUpperCase()}</span></td>
+                            <td><span class="badge status-badge">${curr.toUpperCase()}</span></td>
                             <td>${statusLabel}</td>
                             <td class="time">${time}</td>
                         </tr>
@@ -416,7 +418,7 @@ function fetchAgvLogs() {
 
 function fetchInOutLogs() {
     const tbody = document.getElementById('inout-logs-body');
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">데이터 불러오는 중...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">데이터 불러오는 중...</td></tr>`;
     fetch('/api/logs/inout?limit=20')
         .then(res => res.json())
         .then(data => {
@@ -424,20 +426,21 @@ function fetchInOutLogs() {
                 tbody.innerHTML = "";
                 data.logs.forEach(log => {
                     const time = log.time ? log.time.substring(5, 19).replace('T', ' ') : "-";
-                    const statusLabel = log.task_status === 2 ? "완료" : "진행중";
+                    const statusVal = log.task_status === 2 ? "완료" : "진행중";
+                    const combinedStatus = `${log.type}${statusVal}`; // 예: 입고완료, 출고진행중
+                    
+                    const statusClass = log.task_status === 2 ? 'sys-msg' : 'cmd-out';
+
                     tbody.innerHTML += `
                         <tr>
                             <td>${log.task_id}</td>
-                            <td><span class="badge ${log.type === '입고' ? 'cmd-in' : 'cmd-out'}">${log.type}</span></td>
-                            <td>${log.source_node.toUpperCase()}</td>
-                            <td>${log.destination_node.toUpperCase()}</td>
-                            <td>${statusLabel}</td>
+                            <td><span class="badge ${statusClass}">${combinedStatus}</span></td>
                             <td class="time">${time}</td>
                         </tr>
                     `;
                 });
             } else {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">기록이 없습니다.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">기록이 없습니다.</td></tr>`;
             }
         });
 }

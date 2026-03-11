@@ -5,7 +5,7 @@
 """
 import json
 from flask import Blueprint, request, jsonify
-from network.tcp_robot_server import active_tcp_connections
+from network.tcp_robot_server import active_tcp_connections, latest_robot_state
 
 robot_bp = Blueprint('robot', __name__)
 
@@ -99,8 +99,14 @@ def handle_tasks():
                     (limit,)
                 )
                 tasks = cursor.fetchall()
-                # datetime 객체를 문자열로 변환 ('2026-03-11T14:30:00' 포맷)
+                # datetime 객체를 문자열로 변환 및 실시간 위치 추가
                 for t in tasks:
+                    rid = t.get('robot_id')
+                    if rid in latest_robot_state:
+                        t['current_location'] = latest_robot_state[rid].get('node', '-')
+                    else:
+                        t['current_location'] = "-"
+
                     if isinstance(t.get('created_at'), datetime):
                         t['created_at'] = t['created_at'].isoformat()
             
