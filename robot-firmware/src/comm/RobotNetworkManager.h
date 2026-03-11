@@ -33,6 +33,7 @@
 #include <WiFiUdp.h>
 #include <ArduinoJson.h>
 
+#include "SFAM_Protocol.h"
 #include "../motor/MotorController.h"
 #include "../line/LineFollower.h"
 #include "../path/PathFinder.h"
@@ -212,11 +213,25 @@ private:
     uint16_t    _serverPort;    // 서버 TCP 포트
     uint16_t    _udpPort;       // UDP 브로드캐스트 포트
 
-    char _recvBuffer[1024];     // TCP 수신 버퍼
+    char _recvBuffer[1024];     // TCP 수신 버퍼 (JSON용)
+    uint8_t _rxSfamBuf[SFAM_PKT_MAX];  // SFAM 수신 버퍼
+    uint8_t _rxSfamCount;       // 수신된 SFAM 바이트 수
+    uint8_t _rxSfamPayLen;      // SFAM 페이로드 길이
 
     // ─────────── 통신 재연결 및 상태 관리를 위한 변수 ───────────
-    unsigned long _msgCount;              // 송신 메시지 카운트 (Heartbeat)
+    unsigned long _msgCount;              // 송신 메시지 카운트
     unsigned long _lastReconnectAttempt;  // 마지막으로 서버 재연결을 시도한 시간 (밀리초)
+    unsigned long _lastHeartbeatMs;       // 마지막 HEARTBEAT_REQ 전송 시각
+    uint8_t _sfamSeq;                     // SFAM 패킷 시퀀스
+    uint16_t _currentTaskId;              // 현재 수행 중 task_id (AGV_STATUS_RPT용)
+
+    void sendSfamTelemetry(int battery);
+    void sendSfamHeartbeat();
+    void sendSfamRfidEvent(const char* uid);
+    void sendSfamTaskAck(uint16_t taskId, uint8_t ackCode);
+    void sendSfamStatusRpt(uint16_t taskId, uint8_t taskStatus, uint8_t nodeIdx, uint8_t errorId);
+
+    void processSfamPacket(const uint8_t* pkt, uint8_t payLen);
 
     // ─────────── 모터 및 라인트레이싱 ───────────
     MotorController _motorController;   // 모터 컨트롤러

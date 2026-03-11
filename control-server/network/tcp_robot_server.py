@@ -43,6 +43,9 @@ def handle_hardware_client(client_socket, addr):
                     if not client_id:
                         client_id = f"0x{src_id:02X}"
                         active_tcp_connections[client_id] = client_socket
+                        # task_dispatcher가 agv_id "R01"로 조회하므로 매핑 추가
+                        agv_db_id = "R01" if src_id == 0x01 else f"R{src_id:02d}"
+                        active_tcp_connections[agv_db_id] = client_socket
                         
                     # 1. 하트비트 요청 (0x01)
                     if msg_type == MSG_HEARTBEAT_REQ:
@@ -81,9 +84,8 @@ def handle_hardware_client(client_socket, addr):
                                 "loaded": False
                             }
                             
-                            # 기존 레거시 호환용 (DB 로깅용)
-                            node_pos = f"NODE-{node_idx}"
-                            # DB 로깅
+                            # DB 로깅 (current_node FK: farm_nodes.node_id 형식 a01, s06 등)
+                            node_for_db = node_str if (1 <= node_idx <= 16) else None
                             conn = get_db_connection()
                             try:
                                 with conn.cursor() as cursor:
@@ -92,9 +94,14 @@ def handle_hardware_client(client_socket, addr):
                                         "INSERT IGNORE INTO agv_robots (agv_id, status_id) VALUES (%s, 1)",
                                         (agv_db_id,)
                                     )
+                                    if node_for_db:
+                                        cursor.execute(
+                                            "INSERT IGNORE INTO farm_nodes (node_id, node_name, node_type_id, current_variety_id) VALUES (%s, %s, 2, 1)",
+                                            (node_for_db, node_for_db)
+                                        )
                                     cursor.execute(
                                         "INSERT INTO agv_telemetry_logs (agv_id, current_node, logged_at) VALUES (%s, %s, %s)",
-                                        (agv_db_id, node_pos, datetime.now())
+                                        (agv_db_id, node_for_db, datetime.now())
                                     )
                                 conn.commit()
                             except Exception as e:
@@ -229,6 +236,10 @@ def handle_hardware_client(client_socket, addr):
 
     if client_id and client_id in active_tcp_connections:
         del active_tcp_connections[client_id]
+        # R01 매핑도 제거 (같은 소켓 참조)
+        for k in list(active_tcp_connections.keys()):
+            if active_tcp_connections[k] == client_socket:
+                del active_tcp_connections[k]
     client_socket.close()
 
 
