@@ -71,15 +71,23 @@ def receive_rfid_inoutbound():
 
             variety_id = tray_info['variety_id']
 
-            # 3. 해당 품종(variety)을 보관할 수 있고 빈자리가 있는 재배구역(node_type=1: STATION) 노드 탐색
+            # 3. 해당 품종(variety)을 보관할 수 있고 예약된 자리를 제외하고 빈자리가 있는 재배구역(node_type=1) 노드 탐색
+            # UNSIGNED 컬럼 감산 시 오류 방지를 위해 CAST 사용
             cursor.execute("""
-                SELECT node_id, node_name, (max_capacity - current_quantity) as empty_spots
-                FROM farm_nodes 
-                WHERE node_type_id = 1 
-                  AND current_variety_id = %s 
-                  AND is_active = TRUE
-                  AND current_quantity < max_capacity
-                ORDER BY empty_spots DESC 
+                SELECT fn.node_id, fn.node_name, 
+                       (CAST(fn.max_capacity AS SIGNED) - CAST(fn.current_quantity AS SIGNED) - CAST(IFNULL(tt.reserved, 0) AS SIGNED)) as available_spots
+                FROM farm_nodes fn
+                LEFT JOIN (
+                    SELECT destination_node, COUNT(*) as reserved 
+                    FROM transport_tasks 
+                    WHERE task_status IN (0, 1) 
+                    GROUP BY destination_node
+                ) tt ON fn.node_id = tt.destination_node
+                WHERE fn.node_type_id = 1 
+                  AND fn.current_variety_id = %s 
+                  AND fn.is_active = TRUE
+                  AND (CAST(fn.max_capacity AS SIGNED) - CAST(fn.current_quantity AS SIGNED) - CAST(IFNULL(tt.reserved, 0) AS SIGNED)) > 0
+                ORDER BY available_spots DESC 
                 LIMIT 1
             """, (variety_id,))
             node_info = cursor.fetchone()
