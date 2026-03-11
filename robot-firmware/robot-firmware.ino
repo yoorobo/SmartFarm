@@ -15,7 +15,7 @@
 // Wi-Fi / 서버 설정 (수동 수정)
 #define WIFI_SSID     "addinedu_201class_4-2.4G"
 #define WIFI_PASSWORD "201class4!"
-#define SERVER_IP     "192.168.0.17"
+#define SERVER_IP     "192.168.0.12"
 #define SERVER_TCP_PORT 8080
 #define SERVER_UDP_PORT 7070
 
@@ -58,6 +58,7 @@ void setup() {
 
     // 1. 하드웨어 초기화 (모터, 센서)
     robotNetworkManager.initHardware();
+    robotNetworkManager.setLocationByNodeName("a01", 1);  // 초기 위치: a01, E 방향
 
     // 2. Wi-Fi 연결
     Serial.println("\n[Main] Wi-Fi 연결 중...");
