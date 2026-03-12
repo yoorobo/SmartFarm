@@ -15,7 +15,7 @@
 // Wi-Fi / 서버 설정 (수동 수정)
 #define WIFI_SSID     "ZAKSIM4_2.4G"
 #define WIFI_PASSWORD "zaksim123@"
-#define SERVER_IP     "192.168.8.50"   // control-server IP (로컬: 127.0.0.1)
+#define SERVER_IP     "192.168.8.52"   // control-server IP (로컬: 127.0.0.1)
 #define SERVER_TCP_PORT 8000           // control-server AGV TCP 포트
 #define SERVER_UDP_PORT 7070
 
