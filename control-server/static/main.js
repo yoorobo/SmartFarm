@@ -385,7 +385,7 @@ function openFullLogsModal() {
 
 function fetchAgvLogs() {
     const tbody = document.getElementById('full-logs-body');
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">데이터 불러오는 중...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">데이터 불러오는 중...</td></tr>`;
     fetch(`/api/tasks?limit=20&t=${new Date().getTime()}`)
         .then(res => res.json())
         .then(data => {
@@ -397,21 +397,18 @@ function fetchAgvLogs() {
                     const statusLabel = statusVal === 2 || statusVal === 'COMPLETED' ? "완료" : (statusVal === 1 ? "진행중" : "대기");
                     const src = task.source_node || "-";
                     const dest = task.destination || task.destination_node || "-";
-                    const curr = task.current_location || "-";
-
                     tbody.innerHTML += `
                         <tr>
                             <td><strong>GOTO</strong> (ID: ${task.id || task.task_id})</td>
                             <td><span class="badge sys-msg">${src.toUpperCase()}</span></td>
                             <td><span class="badge">${dest.toUpperCase()}</span></td>
-                            <td><span class="badge status-badge">${curr.toUpperCase()}</span></td>
                             <td>${statusLabel}</td>
                             <td class="time">${time}</td>
                         </tr>
                     `;
                 });
             } else {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">기록이 없습니다.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">기록이 없습니다.</td></tr>`;
             }
         });
 }
