@@ -76,13 +76,13 @@ python main_server.py
 - **AGV TCP 통신 포트**: `8000`
 - **카메라 UDP 스트리밍 포트**: `7070`
 
-### 2. 시뮬레이션 테스트
-하드웨어 없이 소프트웨어 로직(RFID 입고 ~ 로봇 이동완료)을 테스트하려면 별도 터미널에서 다음 스크립트를 실행합니다.
+### 2. 시뮬레이션 및 테스트
+하드웨어(로봇/센서) 없이 소프트웨어 로직만 테스트하려면 별도 터미널에서 다음 스크립트들을 실행하세요.
 
-```bash
-cd control-server
-python network/test_rfid_scenario.py
-```
+*   **통합 시나리오 테스트**: `python3 network/test_rfid_scenario.py` (RFID 입고 ~ 로봇 이동완료 전체 과정)
+*   **로봇 시뮬레이터**: `python3 fake_robot.py` (AGV 로봇 접속 시뮬레이션)
+*   **육묘장 센서 시뮬레이터**: `python3 tests/fake_sensor.py` (환경 데이터 전송 시뮬레이션)
+*   **RFID 리더기 시뮬레이터**: `python3 /tmp/read_rfid.py` (입고 처리 테스트)
 
 ---
 
