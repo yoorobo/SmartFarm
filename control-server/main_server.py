@@ -73,7 +73,8 @@ def receive_data():
         p_id, node_id, dyn_ctrl_id,
         content.get('temperature', 0),
         content.get('humidity', 0),
-        content.get('light', 0)
+        content.get('light', 0),
+        content.get('water', 0)
     )
     return jsonify({"led": led, "val": val, "fan": fan}), 200
 
@@ -100,7 +101,8 @@ def handle_binary_data():
         return "CRC Failed", 400
 
     p_id, node_id, dyn_ctrl_id = identify_node(c_id)
-    led, val, fan = process_sensor_and_control(p_id, node_id, dyn_ctrl_id, temp_raw / 10.0, hum, light)
+    # 기존 바이너리 규격에는 수위(water)가 없으므로 0 혹은 None 전달
+    led, val, fan = process_sensor_and_control(p_id, node_id, dyn_ctrl_id, temp_raw / 10.0, hum, light, 0)
     return f"{led},{val},{fan}", 200
 
 

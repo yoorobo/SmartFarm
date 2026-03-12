@@ -13,8 +13,7 @@ def identify_node(raw_id):
     ID 매핑 규칙:
       - 10     → I10, CTRL-INBOUND-00     (입고장)
       - 99     → O99, CTRL-OUTBOUND-99    (출고장)
-      - 11~13  → S11~S13, CTRL-NURSERY-xx (센서 구역)
-      - 14~16  → R14~R16, CTRL-NURSERY-xx (재배 구역)
+      - 17~22  → S11~S16, CTRL-NURSERY-xx (육묘장 센서 구역)
       - 기타   → nXX, CTRL-UNKNOWN-XX
     """
     try:
@@ -26,10 +25,8 @@ def identify_node(raw_id):
         node_id, dyn_ctrl_id = f"I{clean_id}", "CTRL-INBOUND-00"
     elif clean_id == 99:
         node_id, dyn_ctrl_id = f"O{clean_id}", "CTRL-OUTBOUND-99"
-    elif 11 <= clean_id <= 13:
-        node_id, dyn_ctrl_id = f"S{clean_id}", f"CTRL-NURSERY-{clean_id-10:02d}"
-    elif 14 <= clean_id <= 16:
-        node_id, dyn_ctrl_id = f"R{clean_id}", f"CTRL-NURSERY-{clean_id-10:02d}"
+    elif 17 <= clean_id <= 22:
+        node_id, dyn_ctrl_id = f"S{clean_id-6}", f"CTRL-NURSERY-{clean_id-16:02d}"
     else:
         node_id, dyn_ctrl_id = f"n{clean_id}", f"CTRL-UNKNOWN-{clean_id}"
 

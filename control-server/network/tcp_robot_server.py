@@ -26,6 +26,7 @@ def handle_hardware_client(client_socket, addr):
     
     parser = SfamParser()
     client_id = None
+    display_name = f"{addr}"
     
     while True:
         try:
@@ -47,6 +48,7 @@ def handle_hardware_client(client_socket, addr):
                         
                         _, node_id, _ = identify_node(src_id)
                         active_tcp_connections[node_id] = client_socket
+                        display_name = f"[{node_id}]"
                         
                     # 1. 하트비트 요청 (0x01)
                     if msg_type == MSG_HEARTBEAT_REQ:
@@ -115,25 +117,26 @@ def handle_hardware_client(client_socket, addr):
                         if len(payload) > 0:
                             count = payload[0]
                             idx = 1
-                            temp = hum = light = 0
+                            temp = hum = light = water = 0
                             
                             for _ in range(count):
                                 if idx + 3 >= len(payload): break
                                 s_id = payload[idx]
                                 # 24bit signed int 변환 (대충)
                                 val_bytes = bytes([0]) + payload[idx+1:idx+4]
-                                val = struct.unpack('>i', val_bytes)[0] / 10.0
+                                raw_val = struct.unpack('>i', val_bytes)[0]
                                 
-                                if s_id == 0x01: temp = val
-                                elif s_id == 0x02: hum = val
-                                elif s_id == 0x03: light = val * 10.0 # light는 스케일링 복구
+                                if s_id == 0x01: temp = raw_val / 100.0
+                                elif s_id == 0x02: hum = raw_val / 100.0
+                                elif s_id == 0x03: light = float(raw_val)
+                                elif s_id == 0x04: water = raw_val / 10.0
                                 idx += 4
-                                
+                            
                             # 노드 정보 식별
                             p_id, node_id, dyn_ctrl_id = identify_node(src_id)
                             
                             # 로직 통합: process_sensor_and_control 호출 (DB 저장 및 제어값 계산 포함)
-                            process_sensor_and_control(p_id, node_id, dyn_ctrl_id, temp, hum, light)
+                            process_sensor_and_control(p_id, node_id, dyn_ctrl_id, temp, hum, light, water)
                                 
                     # 4. AGV 로봇이 통신으로 보낸 RFID 태그 인식 이벤트 (0x24)
                     elif msg_type == MSG_RFID_EVENT:
@@ -220,8 +223,11 @@ def handle_hardware_client(client_socket, addr):
                         finally:
                             conn.close()
             
+        except ConnectionResetError:
+            print(f"📡 {display_name} 기기 접속 끊김 (Connection Reset)")
+            break
         except Exception as e:
-            print(f"[TCP Server] Error processing data: {e}")
+            print(f"[TCP Server] {display_name} Error: {e}")
             break
 
     if client_id and client_id in active_tcp_connections:

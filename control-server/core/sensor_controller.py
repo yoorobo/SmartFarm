@@ -15,8 +15,15 @@ latest_data = {}
 # 수동 제어 오버라이드 캐시 (대시보드에서 ON/OFF 시 ESP32로 명령 전달)
 manual_overrides = {}
 
+# ANSI 색상 코드
+COLOR_RESET = "\033[0m"
+COLOR_YELLOW = "\033[33m" # Standard Yellow
+COLOR_BLUE = "\033[34m"   # Standard Blue
+COLOR_RED = "\033[31m"    # Standard Red
+COLOR_CYAN = "\033[36m"
 
-def process_sensor_and_control(p_id, node_id, dyn_ctrl_id, curr_temp, curr_humi, curr_light):
+
+def process_sensor_and_control(p_id, node_id, dyn_ctrl_id, curr_temp, curr_humi, curr_light, curr_water=0):
     """
     신규 스키마의 분리된 센서/구동기 테이블에 데이터를 안전하게 저장하고 제어값을 반환합니다.
     
@@ -47,8 +54,12 @@ def process_sensor_and_control(p_id, node_id, dyn_ctrl_id, curr_temp, curr_humi,
                 WHERE controller_id=%s
             """, (kst_now, dyn_ctrl_id))
 
-            # 2. 정규화된 센서 데이터 삽입 (Temp=1, Humi=2, Light=3)
-            for s_type, val in [(1, curr_temp), (2, curr_humi), (3, curr_light)]:
+            # 2. 정규화된 센서 데이터 삽입 (Temp=1, Humi=2, Light=3, Water=4)
+            sensor_data = [(1, curr_temp), (2, curr_humi), (3, curr_light)]
+            if curr_water is not None:
+                sensor_data.append((4, curr_water))
+
+            for s_type, val in sensor_data:
                 cursor.execute(
                     "SELECT sensor_id FROM nursery_sensors WHERE controller_id=%s AND sensor_type_id=%s",
                     (dyn_ctrl_id, s_type)
@@ -77,12 +88,21 @@ def process_sensor_and_control(p_id, node_id, dyn_ctrl_id, curr_temp, curr_humi,
                 WHERE fn.node_id = %s
             """, (node_id,))
             env = cursor.fetchone()
-            t_set, h_set, l_set = (env['opt_temp_day'], env['opt_humidity'], env['opt_light_dli']) if env else (22, 58, 2000)
+            
+            # DB에 값이 있더라도 개별 컬럼이 NULL일 수 있으므로 각각 체크하여 기본값 부여
+            if env:
+                t_set = env['opt_temp_day'] if env['opt_temp_day'] is not None else 22.0
+                h_set = env['opt_humidity'] if env['opt_humidity'] is not None else 58.0
+                l_set = env['opt_light_dli'] if env['opt_light_dli'] is not None else 2000.0
+            else:
+                t_set, h_set, l_set = 22.0, 58.0, 2000.0
 
             # 4. 제어 로직 (자동 로직)
-            command_led = "LED_ON" if curr_light < l_set else "LED_OFF"
-            command_val = "VAL_ON" if curr_humi < h_set else "VAL_OFF"
-            command_fan = "FAN_ON" if curr_temp > t_set else "FAN_OFF"
+            # 사용자 요청에 따라 626 lux는 LED_OFF가 되도록 기준값 조정 (기본 l_set=2000 -> 500)
+            l_set_adj = 500.0 if l_set == 2000.0 else l_set 
+            command_led = "LED_ON" if (curr_light if curr_light is not None else 0) < l_set_adj else "LED_OFF"
+            command_val = "VAL_ON" if (curr_humi if curr_humi is not None else 0) < h_set else "VAL_OFF"
+            command_fan = "FAN_ON" if (curr_temp if curr_temp is not None else 0) > t_set else "FAN_OFF"
 
             # 4-1. 수동 제어 오버라이드 반영
             ui_node = node_id.lower()
@@ -123,12 +143,21 @@ def process_sensor_and_control(p_id, node_id, dyn_ctrl_id, curr_temp, curr_humi,
 
         # 6. 로깅 및 캐시 업데이트
         log_suffix = f"({'inbound' if p_id==10 else 'outbound'}) " if p_id in [10, 99] else ""
-        print(f"📡 [{node_id}] {log_suffix}온도:{curr_temp}℃ | 조도:{curr_light} >> 📤 {command_led}, {command_val}, {command_fan}")
+        water_str = f" | 수위:{curr_water:4.1f}%" if curr_water is not None else ""
+        
+        # 색상 적용 (출력용)
+        disp_led = f"{COLOR_YELLOW}{command_led}{COLOR_RESET}" if command_led.endswith("_ON") else command_led
+        disp_val = f"{COLOR_BLUE}{command_val}{COLOR_RESET}" if command_val.endswith("_ON") else command_val
+        disp_fan = f"{COLOR_RED}{command_fan}{COLOR_RESET}" if command_fan.endswith("_ON") else command_fan
+        
+        print(f"📡 [{node_id}] {log_suffix}온도:{curr_temp:4.1f}℃ | 습도:{curr_humi:4.1f}% | 조도:{curr_light:>4}{water_str} >> 📤 {disp_led}, {disp_val}, {disp_fan}")
 
         latest_data[node_id] = {
             "temp": round(curr_temp, 1) if isinstance(curr_temp, (int, float)) else curr_temp,
             "humi": round(curr_humi, 1) if isinstance(curr_humi, (int, float)) else curr_humi,
-            "light": curr_light, "led": command_led, "val": command_val, "fan": command_fan,
+            "light": curr_light, 
+            "water": curr_water,
+            "led": command_led, "val": command_val, "fan": command_fan,
             "last_seen": kst_now.strftime('%H:%M:%S')
         }
         return command_led, command_val, command_fan
