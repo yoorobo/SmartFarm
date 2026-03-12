@@ -6,13 +6,14 @@
 
 /**
  * @class ServoArmController
- * @brief 17번(360도 연속 회전 팔) 및 16번(180도 그리퍼) 서보모터 제어 클래스 
+ * @brief 17번(360도 연속 회전 팔) 및 16번(180도 그리퍼) 서보모터 제어 클래스
+ * @note 180도 회전이 정확하지 않으면 time180CCW 상수를 300~600 범위에서 조정하세요.
  */
 class ServoArmController {
 private:
     Servo _armServo;
     Servo _gripperServo;
-    bool _armEnabled = true;  // false: 실제 서보 구동 안 함
+    bool _armEnabled = false;  // false: 실제 서보 구동 안 함
 
     // 핀 번호 설정
     const int PIN_ARM = 17;
@@ -26,6 +27,7 @@ private:
     // 회전 유지 시간 (ms)
     const int timeCW = 1800;   // 시계방향 동작 시간
     const int timeCCW = 1800;  // 반시계방향 동작 시간
+    const int time180CCW = 450;  // 180도 회전 시간 (ms) - 정확하지 않으면 300~600 범위에서 조정
 
     // 180도 그리퍼 제어값 (각도)
     const int GRIPPER_OPEN = 180;   // 놓기 (180도)
@@ -85,6 +87,18 @@ public:
         delay(timeCCW); 
         _armServo.writeMicroseconds(ARM_STOP); 
         Serial.println(" -> 암 회전 완료!");
+    }
+
+    /**
+     * @brief 암 반시계방향 180도 회전 (s11 도착용)
+     */
+    void rotateArm180CCW() {
+        if (!_armEnabled) return;
+        Serial.println(" -> [동작] 암 180도 회전 (반시계방향)");
+        _armServo.writeMicroseconds(ARM_COUNTERCLOCK);
+        delay(time180CCW);
+        _armServo.writeMicroseconds(ARM_STOP);
+        Serial.println(" -> 암 180도 회전 완료!");
     }
 
     /**

@@ -238,7 +238,7 @@ void LineFollower::executeCrossroadCommand() {
             // 2. 후진하여 트레이와 밀착 (약 0.5초 ~ 1초 후진, 하드웨어 테스트 후 시간 조정 필요)
             Serial.println("[LineFollower] 픽업을 위해 후진하여 트레이에 밀착...");
             _motor.goBackward();
-            delay(800);  // 800ms 후진 (임시값)
+            delay(1000);  // 1초 후진
             _motor.stop();
             delay(500);  // 안정화 대기
             
@@ -246,6 +246,11 @@ void LineFollower::executeCrossroadCommand() {
             _arm.pickExecute();
             
             Serial.println("[LineFollower] 자율 픽업 시퀀스 완료!");
+        }
+        // --- [s11 도착] 암 180도 회전 ---
+        if (_currentIdx == 10) {
+            Serial.println("[LineFollower] 목적지 S11 도착 -> 암 180도 회전");
+            _arm.rotateArm180CCW();
         }
         // -------------------------------------------------------------
         
@@ -280,11 +285,16 @@ void LineFollower::executeCrossroadCommand() {
                 Serial.println("[LineFollower] 목적지 A01(입고장) 감지 -> 자율 픽업 시퀀스 시작!");
                 _arm.pickReady();
                 _motor.goBackward();
-                delay(800);  // 밀착 전진 (필요 시 시간 조절)
+                delay(1000);  // 1초 후진
                 _motor.stop();
                 delay(500);
                 _arm.pickExecute();
                 Serial.println("[LineFollower] 자율 픽업 시퀀스 완료!");
+            }
+            // --- [s11 도착] 암 180도 회전 ---
+            if (_currentIdx == 10) {
+                Serial.println("[LineFollower] 목적지 S11 도착 -> 암 180도 회전");
+                _arm.rotateArm180CCW();
             }
             // -------------------------------------------------------------
             
