@@ -279,12 +279,6 @@ void RobotNetworkManager::handleIncoming() {
     // 라인트레이싱 업데이트 (매 사이클 실행)
     _lineFollower.update();
 
-    // 경유 노드 도달 시 control server에 STATUS_RPT 송신
-    int nodeIdx = -1;
-    if (_lineFollower.consumeNodeEntryEvent(&nodeIdx) && _currentTaskId != 0) {
-        sendSfamStatusRpt(_currentTaskId, 1, (uint8_t)(nodeIdx >= 0 && nodeIdx < 16 ? nodeIdx + 1 : 0), 0);
-    }
-
     if (_currentTaskId != 0 && _lineFollower.getState() == RobotState::ARRIVED) {
         int nodeIdx = _lineFollower.getCurrentNodeIndex();
         sendSfamStatusRpt(_currentTaskId, 2, (uint8_t)(nodeIdx >= 0 && nodeIdx < 16 ? nodeIdx + 1 : 0), 0);

@@ -143,13 +143,6 @@ public:
      */
     String getRealNodeName(int nodeIdx) const;
 
-    /**
-     * @brief 교차로 도달 시 노드 진입 이벤트를 소비한다.
-     * @param outNodeIdx 진입한 노드 인덱스 (0~15)를 저장할 포인터
-     * @return 이벤트가 있으면 true, 없으면 false
-     */
-    bool consumeNodeEntryEvent(int* outNodeIdx);
-
     // ─────────── 센서 값 조회 ───────────
 
     /** @brief 센서 값 조회 (디버깅/상태 전송용) */
@@ -214,10 +207,6 @@ private:
     int _backwardPhase;       // 0=최소 후진(B만), 1=교차로 탈출, 2=다음 교차로까지
     unsigned long _backwardStartTime;
     int _backwardStepDelta;
-
-    // 노드 진입 이벤트 (경유 노드 서버 송신용)
-    bool _nodeEntryPending;
-    int _nodeEntryIdx;
 };
 
 #endif // LINE_FOLLOWER_H

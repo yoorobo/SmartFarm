@@ -12,8 +12,7 @@ from core.node_identifier import identify_node
 from core.sensor_controller import latest_data, process_sensor_and_control
 from network.sfam_protocol import (
     SfamParser, build_packet, MSG_HEARTBEAT_REQ, MSG_HEARTBEAT_ACK,
-    MSG_AGV_TELEMETRY, MSG_AGV_STATUS_RPT, MSG_SENSOR_BATCH, MSG_RFID_EVENT,
-    ID_SERVER, MSG_AGV_TASK_CMD
+    MSG_AGV_TELEMETRY, MSG_SENSOR_BATCH, MSG_RFID_EVENT, ID_SERVER, MSG_AGV_TASK_CMD
 )
 
 # TCP 연결된 클라이언트 소켓 관리
@@ -110,56 +109,6 @@ def handle_hardware_client(client_socket, addr):
                                 print(f"DB Error: {e}")
                             finally:
                                 conn.close()
-
-                    # 2b. AGV_STATUS_RPT (0x13) - 경유 노드 보고
-                    elif msg_type == MSG_AGV_STATUS_RPT:
-                        if len(payload) >= 5:
-                            task_id = (payload[0] << 8) | payload[1]
-                            task_status = payload[2]
-                            node_idx = payload[3]
-                            agv_db_id = f"R{src_id:02d}"
-
-                            if 1 <= node_idx <= 4:
-                                node_str = f"a{node_idx:02d}"
-                            elif 5 <= node_idx <= 7:
-                                node_str = f"s{node_idx:02d}"
-                            elif 8 <= node_idx <= 10:
-                                node_str = f"r{node_idx:02d}"
-                            elif 11 <= node_idx <= 13:
-                                node_str = f"s{node_idx:02d}"
-                            elif 14 <= node_idx <= 16:
-                                node_str = f"r{node_idx:02d}"
-                            else:
-                                node_str = f"node-{node_idx:02d}"
-
-                            if agv_db_id not in latest_robot_state:
-                                latest_robot_state[agv_db_id] = {"battery": 100, "node": node_str, "loaded": False}
-                            else:
-                                latest_robot_state[agv_db_id]["node"] = node_str
-
-                            node_for_db = node_str if (1 <= node_idx <= 16) else None
-                            conn = get_db_connection()
-                            try:
-                                with conn.cursor() as cursor:
-                                    cursor.execute(
-                                        "INSERT IGNORE INTO agv_robots (agv_id, status_id) VALUES (%s, 1)",
-                                        (agv_db_id,)
-                                    )
-                                    if node_for_db:
-                                        cursor.execute(
-                                            "INSERT IGNORE INTO farm_nodes (node_id, node_name, node_type_id, current_variety_id) VALUES (%s, %s, 2, 1)",
-                                            (node_for_db, node_for_db)
-                                        )
-                                    cursor.execute(
-                                        "INSERT INTO agv_telemetry_logs (agv_id, current_node, logged_at) VALUES (%s, %s, %s)",
-                                        (agv_db_id, node_for_db, datetime.now())
-                                    )
-                                conn.commit()
-                            except Exception as e:
-                                print(f"DB Error (STATUS_RPT): {e}")
-                            finally:
-                                conn.close()
-
                                 
                     # 3. 육묘장 센서 배치 (0x20)
                     elif msg_type == MSG_SENSOR_BATCH:

@@ -28,8 +28,6 @@ LineFollower::LineFollower(MotorController& motor, ServoArmController& arm)
     , _backwardPhase(0)
     , _backwardStartTime(0)
     , _backwardStepDelta(0)
-    , _nodeEntryPending(false)
-    , _nodeEntryIdx(-1)
 {
     for (int i = 0; i < 16; i++) _pathNodeSeq[i] = -1;
 }
@@ -42,7 +40,6 @@ void LineFollower::setPath(const String& path) {
     _pathString = path;
     _currentStep = 0;
     _pathNodeCount = 0;
-    _nodeEntryPending = false;
     Serial.printf("[LineFollower] 경로 설정: %s\n", path.c_str());
 }
 
@@ -50,7 +47,6 @@ void LineFollower::setPath(const String& path, const int* nodeSeq, int nodeCount
     _pathString = path;
     _currentStep = 0;
     _pathNodeCount = 0;
-    _nodeEntryPending = false;
     if (nodeSeq != nullptr && nodeCount > 0) {
         for (int i = 0; i < nodeCount && i < 16; i++) {
             _pathNodeSeq[i] = nodeSeq[i];
@@ -79,15 +75,6 @@ String LineFollower::getRealNodeName(int nodeIdx) const {
         return String(NODE_NAMES[nodeIdx]);
     }
     return "UNKNOWN";
-}
-
-bool LineFollower::consumeNodeEntryEvent(int* outNodeIdx) {
-    if (!_nodeEntryPending || outNodeIdx == nullptr) {
-        return false;
-    }
-    *outNodeIdx = _nodeEntryIdx;
-    _nodeEntryPending = false;
-    return true;
 }
 
 PathCommand LineFollower::charToPathCommand(char c) const {
@@ -122,7 +109,6 @@ void LineFollower::start() {
 void LineFollower::stop() {
     _isRunning = false;
     _state = RobotState::IDLE;
-    _nodeEntryPending = false;
     _motor.stop();
     Serial.println("[LineFollower] 🛑 주행 정지");
 }
@@ -192,12 +178,6 @@ void LineFollower::update() {
             _nodeName = "Node_" + String(_currentStep + 1);
         }
         Serial.printf("[LineFollower] 교차로 도착: %s\n", _nodeName.c_str());
-
-        // 노드 진입 이벤트 설정 (경유 노드 서버 송신용)
-        if (_pathNodeCount > 0 && _currentStep < _pathNodeCount) {
-            _nodeEntryPending = true;
-            _nodeEntryIdx = _pathNodeSeq[_currentStep];
-        }
 
         // 경로 명령 실행
         executeCrossroadCommand();
