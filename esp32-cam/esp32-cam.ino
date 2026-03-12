@@ -9,7 +9,8 @@
 // Wi-Fi / 서버 설정 (수동 수정)
 #define WIFI_SSID "addinedu_201class_4-2.4G"
 #define WIFI_PASSWORD "201class4!"
-#define SERVER_IP "192.168.0.132"
+#define SERVER_IP "192.168.0.17"
+
 #define SERVER_TCP_PORT 8080
 #define SERVER_UDP_PORT 7070
 
@@ -78,6 +79,10 @@ void setup() {
     delay(1000);
     ESP.restart();
   }
+
+  sensor_t *s = esp_camera_sensor_get();
+  s->set_hmirror(s, 0);  // 1 = 좌우반전, 0 = 원래대로
+  s->set_vflip(s, 0);  // 1 = 상하반전, 0 = 원래대로
 
   Serial.println("[WiFi] 연결 시도 중...");
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);

@@ -13,8 +13,7 @@
 #define LINE_FOLLOWER_H
 
 #include <Arduino.h>
-#include "../motor/MotorController.h"
-#include "../motor/ServoArmController.h"
+#include "MotorController.h"
 
 /**
  * @brief 로봇 주행 상태
@@ -32,8 +31,7 @@ enum class RobotState {
     FINDING_UTURN = 9,  // 교차로에서 U턴 진행 중
     PASSING_STRAIGHT = 10, // 교차로 직진 통과
     ARRIVED = 11,       // 목적지 도착 완료
-    OUT_OF_LINE = 12,   // 라인 이탈 (정지)
-    BACKWARD = 13       // 후진 라인 추종 중
+    OUT_OF_LINE = 12    // 라인 이탈 (정지)
 };
 
 /**
@@ -45,8 +43,7 @@ enum class PathCommand {
     RIGHT = 2,      // R: 우회전
     UTURN = 3,      // U: U턴
     STRAIGHT = 4,   // S: 직진
-    END = 5,        // E: 종료
-    BACKWARD = 6    // B: 후진
+    END = 5         // E: 종료
 };
 
 /**
@@ -57,27 +54,17 @@ public:
     /**
      * @brief 생성자
      * @param motor MotorController 참조
-     * @param arm   ServoArmController 참조
      */
-    explicit LineFollower(MotorController& motor, ServoArmController& arm);
+    explicit LineFollower(MotorController& motor);
 
     // ─────────── 경로 설정 ───────────
 
     /**
      * @brief 경로 설정.
-     * @param path 경로 문자열 (예: "123456" 또는 "LRUSEB")
-     *             숫자: 1=L, 2=R, 3=U, 4=S, 5=E, 6=B
-     *             문자: L=좌회전, R=우회전, U=U턴, S=직진, E=종료, B=후진
+     * @param path 숫자로 인코딩된 경로 문자열 (예: "12345")
+     *             1=L, 2=R, 3=U, 4=S, 5=E
      */
     void setPath(const String& path);
-
-    /**
-     * @brief 경로 설정 (노드 시퀀스 포함, 위치 추적용).
-     * @param path     경로 문자열 ("LRUSE" 형식)
-     * @param nodeSeq  경로상 노드 인덱스 배열 (start,...,target), nullptr이면 생략
-     * @param nodeCount nodeSeq 길이
-     */
-    void setPath(const String& path, const int* nodeSeq, int nodeCount);
 
     /**
      * @brief 주행 시작.
@@ -111,38 +98,6 @@ public:
     /** @brief 현재 경로 진행 단계 반환 */
     int getCurrentStep() const { return _currentStep; }
 
-    /**
-     * @brief 현재 노드 인덱스 반환 (0~15).
-     *        PathFinder 그래프와 연동용.
-     */
-    int getCurrentNodeIndex() const { return _currentIdx; }
-
-    /**
-     * @brief 현재 방향 반환 (0~3).
-     *        0=N, 1=E, 2=S, 3=W
-     */
-    int getCurrentDirection() const { return _currentDir; }
-
-    /**
-     * @brief 교차로 후진 시간 설정 (0=비활성화).
-     *        교차로 도달 시 지정 시간(ms)만큼 후진 후 경로 명령 실행.
-     */
-    void setCrossroadBackwardMs(unsigned int ms) { _crossroadBackwardMs = ms; }
-
-    /**
-     * @brief 위치 수동 설정 (SET_LOC 명령용).
-     * @param nodeIdx  노드 인덱스 (0~15)
-     * @param dir      방향 (0~3)
-     * @param nodeName 노드 이름 (예: "a01"), nullptr이면 실제 노드명(getRealNodeName) 참조
-     */
-    void setLocation(int nodeIdx, int dir, const char* nodeName = nullptr);
-
-    /**
-     * @brief 노드 인덱스에 매칭되는 실제 이름 문자열 반환 (예: 0 -> "a01")
-     * @param nodeIdx 노드 인덱스 (0~15)
-     */
-    String getRealNodeName(int nodeIdx) const;
-
     // ─────────── 센서 값 조회 ───────────
 
     /** @brief 센서 값 조회 (디버깅/상태 전송용) */
@@ -157,17 +112,11 @@ private:
     /** @brief 교차로에서 경로 명령 실행 */
     void executeCrossroadCommand();
 
-    /** @brief 문자 경로(LRUSE)를 PathCommand로 변환 */
-    PathCommand charToPathCommand(char c) const;
-
     /** @brief 일반 라인트레이싱 수행 */
     void followLine(int s1, int s2, int s3, int s4, int s5);
 
-    /** @brief 후진 라인트레이싱 (교차로 후진용) */
-    void followLineBackward(int s1, int s2, int s3, int s4, int s5);
-
-    /** @brief 라인 따라 후진하다가 다음 교차로 감지 시 정지 */
-    void runBackwardUntilCrossroad(bool startedOnCross);
+    /** @brief 센서 기반 제자리 회전: 라인 감지하면 정지 */
+    void spinUntilLine(bool goLeft);
 
     /** @brief 좌회전 완료 대기 (라인 안착) */
     void waitForLineAfterLeft();
@@ -181,32 +130,16 @@ private:
     // ─────────── 멤버 변수 ───────────
 
     MotorController& _motor;    // 모터 컨트롤러 참조
-    ServoArmController& _arm;   // 서보 팔 컨트롤러 참조
 
-    String _pathString;         // 경로 문자열 (숫자 또는 LRUSE)
+    String _pathString;         // 경로 문자열 (숫자 인코딩)
     int _currentStep;           // 현재 경로 단계
     bool _isRunning;            // 주행 중 여부
 
     RobotState _state;          // 현재 로봇 상태
-    String _nodeName;           // 현재 노드 이름 (예: "a01")
-
-    int _currentIdx;            // 현재 노드 인덱스 (0~15)
-    int _currentDir;            // 현재 방향 (0~3)
-
-    int _pathNodeSeq[16];       // 경로상 노드 시퀀스 (위치 추적용)
-    int _pathNodeCount;         // _pathNodeSeq 유효 개수, 0이면 미사용
+    String _nodeName;           // 현재 노드 이름
 
     // 센서 캐시 (상태 전송용)
     int _s1, _s2, _s3, _s4, _s5;
-
-    unsigned int _crossroadBackwardMs;  // 교차로에서 후진 시간 (0=미사용)
-
-    // 후진 논블로킹 상태 머신
-    bool _isBackwardUntilCrossroad;
-    bool _backwardStartedOnCross;
-    int _backwardPhase;       // 0=최소 후진(B만), 1=교차로 탈출, 2=다음 교차로까지
-    unsigned long _backwardStartTime;
-    int _backwardStepDelta;
 };
 
 #endif // LINE_FOLLOWER_H

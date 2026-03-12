@@ -10,8 +10,9 @@
 //  생성자
 // ============================================================
 
-LineFollower::LineFollower(MotorController& motor)
+LineFollower::LineFollower(MotorController& motor, ServoArmController& arm)
     : _motor(motor)
+    , _arm(arm)
     , _pathString("")
     , _currentStep(0)
     , _isRunning(false)
@@ -218,9 +219,36 @@ void LineFollower::executeCrossroadCommand() {
     // 경로 끝 확인
     if (_currentStep >= (int)_pathString.length()) {
         _state = RobotState::ARRIVED;
-        _nodeName = "도착";
+        if (_pathNodeCount > 0 && _currentStep < _pathNodeCount) {
+            _currentIdx = _pathNodeSeq[_currentStep];
+            _nodeName = getRealNodeName(_currentIdx);
+        } else {
+            _nodeName = "도착";
+        }
         _isRunning = false;
         Serial.println("[LineFollower] ✅ 목적지 도착");
+        
+        // --- [자동 픽업 로직] 목적지가 입고장(A01, index 0)인 경우 ---
+        if (_currentIdx == 0) {
+            Serial.println("[LineFollower] 목적지 A01(입고장) 감지 -> 자율 픽업 시퀀스 시작!");
+            
+            // 1. 픽업 준비 (그리퍼 열기, 팔 내리기)
+            _arm.pickReady();
+            
+            // 2. 후진하여 트레이와 밀착 (약 0.5초 ~ 1초 후진, 하드웨어 테스트 후 시간 조정 필요)
+            Serial.println("[LineFollower] 픽업을 위해 후진하여 트레이에 밀착...");
+            _motor.goBackward();
+            delay(800);  // 800ms 후진 (임시값)
+            _motor.stop();
+            delay(500);  // 안정화 대기
+            
+            // 3. 픽업 실행 (그리퍼 닫기, 팔 올리기)
+            _arm.pickExecute();
+            
+            Serial.println("[LineFollower] 자율 픽업 시퀀스 완료!");
+        }
+        // -------------------------------------------------------------
+        
         return;
     }
 
@@ -246,12 +274,24 @@ void LineFollower::executeCrossroadCommand() {
             }
             _isRunning = false;
             Serial.println("[LineFollower] ✅ 목적지 도착 (E 명령)");
+            
+            // --- [자동 픽업 로직] 목적지가 입고장(A01, index 0)인 경우 ---
+            if (_currentIdx == 0) {
+                Serial.println("[LineFollower] 목적지 A01(입고장) 감지 -> 자율 픽업 시퀀스 시작!");
+                _arm.pickReady();
+                _motor.goBackward();
+                delay(800);  // 밀착 전진 (필요 시 시간 조절)
+                _motor.stop();
+                delay(500);
+                _arm.pickExecute();
+                Serial.println("[LineFollower] 자율 픽업 시퀀스 완료!");
+            }
+            // -------------------------------------------------------------
+            
             break;
 
         case PathCommand::LEFT: {
-            bool doBackward = (_currentStep + 1 < (int)_pathString.length()) &&
-                              (_pathString.charAt(_currentStep + 1) == 'B');
-            Serial.printf("[LineFollower] %s 좌회전 실행\n", doBackward ? "⬅️ 좌회전+후진" : "⬅️ 좌회전");
+            Serial.printf("[LineFollower] ⬅️ 좌회전 실행\n");
             _state = RobotState::FINDING_LEFT;
             _currentDir = (_currentDir + 3) % 4;
             if (_pathNodeCount > 0 && _currentStep + 1 < _pathNodeCount) {
@@ -263,28 +303,11 @@ void LineFollower::executeCrossroadCommand() {
             _motor.turnLeftHard();
             delay(500);
             waitForLineAfterLeft();
-            if (doBackward) {
-                _motor.stop();
-                delay(150);
-                // 교차로 탈출 + 선 위 안착 후 후진 (선 무시 방지)
-                _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                unsigned long t0 = millis();
-                while (detectCrossroad(_s1, _s2, _s3, _s4, _s5) && (millis() - t0 < 2000)) {
-                    _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                    followLine(_s1, _s2, _s3, _s4, _s5);
-                    delay(5);
-                }
-                runBackwardUntilCrossroad(false);
-                _backwardStepDelta = 2;
-                stepDelta = 0;
-            }
             break;
         }
 
         case PathCommand::RIGHT: {
-            bool doBackward = (_currentStep + 1 < (int)_pathString.length()) &&
-                              (_pathString.charAt(_currentStep + 1) == 'B');
-            Serial.printf("[LineFollower] %s 우회전 실행\n", doBackward ? "➡️ 우회전+후진" : "➡️ 우회전");
+            Serial.printf("[LineFollower] ➡️ 우회전 실행\n");
             _state = RobotState::FINDING_RIGHT;
             _currentDir = (_currentDir + 1) % 4;
             if (_pathNodeCount > 0 && _currentStep + 1 < _pathNodeCount) {
@@ -296,27 +319,11 @@ void LineFollower::executeCrossroadCommand() {
             _motor.turnRightHard();
             delay(500);
             waitForLineAfterRight();
-            if (doBackward) {
-                _motor.stop();
-                delay(150);
-                _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                unsigned long t0 = millis();
-                while (detectCrossroad(_s1, _s2, _s3, _s4, _s5) && (millis() - t0 < 2000)) {
-                    _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                    followLine(_s1, _s2, _s3, _s4, _s5);
-                    delay(5);
-                }
-                runBackwardUntilCrossroad(false);
-                _backwardStepDelta = 2;
-                stepDelta = 0;
-            }
             break;
         }
 
         case PathCommand::UTURN: {
-            bool doBackward = (_currentStep + 1 < (int)_pathString.length()) &&
-                              (_pathString.charAt(_currentStep + 1) == 'B');
-            Serial.printf("[LineFollower] %s U턴 실행\n", doBackward ? "↩️ U턴+후진" : "↩️ U턴");
+            Serial.printf("[LineFollower] ↩️ U턴 실행\n");
             _state = RobotState::FINDING_UTURN;
             _currentDir = (_currentDir + 2) % 4;
             if (_pathNodeCount > 0 && _currentStep + 1 < _pathNodeCount) {
@@ -328,27 +335,11 @@ void LineFollower::executeCrossroadCommand() {
             _motor.uTurnRight();
             delay(350);
             waitForLineAfterUturn();
-            if (doBackward) {
-                _motor.stop();
-                delay(150);
-                _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                unsigned long t0 = millis();
-                while (detectCrossroad(_s1, _s2, _s3, _s4, _s5) && (millis() - t0 < 2000)) {
-                    _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                    followLine(_s1, _s2, _s3, _s4, _s5);
-                    delay(5);
-                }
-                runBackwardUntilCrossroad(false);
-                _backwardStepDelta = 2;
-                stepDelta = 0;
-            }
             break;
         }
 
         case PathCommand::STRAIGHT: {
-            bool doBackward = (_currentStep + 1 < (int)_pathString.length()) &&
-                              (_pathString.charAt(_currentStep + 1) == 'B');
-            Serial.printf("[LineFollower] %s 직진 통과\n", doBackward ? "⬆️ 직진+후진" : "⬆️ 직진");
+            Serial.printf("[LineFollower] ⬆️ 직진 통과\n");
             _state = RobotState::PASSING_STRAIGHT;
             if (_pathNodeCount > 0 && _currentStep + 1 < _pathNodeCount) {
                 _currentIdx = _pathNodeSeq[_currentStep + 1];
@@ -356,18 +347,6 @@ void LineFollower::executeCrossroadCommand() {
             }
             _motor.goForward();
             delay(300);
-            if (doBackward) {
-                _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                unsigned long t0 = millis();
-                while (detectCrossroad(_s1, _s2, _s3, _s4, _s5) && (millis() - t0 < 2000)) {
-                    _motor.readSensors(_s1, _s2, _s3, _s4, _s5);
-                    followLine(_s1, _s2, _s3, _s4, _s5);
-                    delay(5);
-                }
-                runBackwardUntilCrossroad(false);
-                _backwardStepDelta = 2;
-                stepDelta = 0;
-            }
             break;
         }
 
@@ -397,13 +376,13 @@ void LineFollower::followLine(int s1, int s2, int s3, int s4, int s5) {
         _motor.goForward();
     }
     // 좌측 센서 감지 (끝 제외): 부드러운 좌회전
-    else if (s2 == 1 && s1 == 0) {
+    else if ((s2 == 1 && s1 == 0)   || (s2 == 1 && s3 == 1))  {
         _state = RobotState::SOFT_LEFT;
         _motor.turnLeftSoft();
         delay(3);
     }
     // 우측 센서 감지 (끝 제외): 부드러운 우회전
-    else if (s4 == 1 && s5 == 0) {
+    else if ((s4 == 1 && s5 == 0) || (s4 == 1 && s3 == 1)){
         _state = RobotState::SOFT_RIGHT;
         _motor.turnRightSoft();
         delay(3);
@@ -428,22 +407,32 @@ void LineFollower::followLine(int s1, int s2, int s3, int s4, int s5) {
 }
 
 void LineFollower::followLineBackward(int s1, int s2, int s3, int s4, int s5) {
-    if (s3 == 1 && s1 == 0 && s2 == 0 && s4 == 0 && s5 == 0) {
-        _motor.goBackward();  // 좌우 모두 후진
-    } else if (s2 == 1 && s1 == 0) {
-        _motor.goBackwardRightSoft();   // 좌측 모터만 후진, 우측 정지
+    static unsigned long lastLogMs = 0;
+    const unsigned long LOG_INTERVAL_MS = 100;
+    unsigned long now = millis();
+    bool mayLog = (now - lastLogMs >= LOG_INTERVAL_MS);
+
+    // 전진과 동일 논리: 라인 왼쪽(s2/s1)→후미 좌측, 라인 오른쪽(s4/s5)→후미 우측
+    if ((s3 == 1 && s1 == 0 && s2 == 0 && s4 == 0 && s5 == 0) || (s3 == 1 && s1 == 1 && s2 == 1 && s4 == 1 && s5 == 1) || (s3 == 1 && s1 == 0 && s2 == 1 && s4 == 1 && s5 == 0))  {
+        _motor.goBackward();
+    } else if ((s2 == 1 && s3 == 1 ) || (s2 == 1 && s3 == 0)) {
+        if (mayLog) { Serial.println("[후진] goBackwardLeftSoft"); lastLogMs = now; }
+        _motor.goBackwardLeftSoft();
         delay(3);
-    } else if (s4 == 1 && s5 == 0) {
-        _motor.goBackwardLeftSoft();    // 우측 모터만 후진, 좌측 정지
+    } else if ((s4 == 1 && s3 == 0) || (s4 == 1 && s3 == 1)){
+        if (mayLog) { Serial.println("[후진] goBackwardRightSoft"); lastLogMs = now; }
+        _motor.goBackwardRightSoft();
         delay(3);
     } else if (s1 == 1) {
-        _motor.goBackwardRightHard();   // 좌측 느리게, 우측 빠르게 후진
+        if (mayLog) { Serial.println("[후진] goBackwardLeftHard"); lastLogMs = now; }
+        _motor.goBackwardLeftHard();
         delay(3);
     } else if (s5 == 1) {
-        _motor.goBackwardLeftHard();    // 좌측 빠르게, 우측 느리게 후진
+        if (mayLog) { Serial.println("[후진] goBackwardRightHard"); lastLogMs = now; }
+        _motor.goBackwardRightHard();
         delay(3);
     } else {
-        _motor.stop();
+        _motor.goBackward();
     }
 }
 
