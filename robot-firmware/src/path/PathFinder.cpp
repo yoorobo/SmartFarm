@@ -186,7 +186,8 @@ int PathFinder::calculatePath(int startIdx, int targetIdx, int startDir, char* o
         currentDir = exitDir;  // 진입 후 바라보는 방향 = 나간 방향과 동일
     }
 
-    // 목적지별 도착 접미사: a01/a04=UE, s11~r16=(반대회전)BBE
+    // 목적지별 도착 접미사: a01/a04=SE(직진후도착), s11~r16=(반대회전)BBE
+    // ★ A01/A04: U턴을 경로에 넣지 않음! executeInboundPickup이 도착 후 직접 U턴을 담당.
     if (outLen < 1 || outLen >= PATH_STRING_MAX - 2) {
         outPath[outLen++] = 'E';
     } else {
@@ -194,7 +195,7 @@ int PathFinder::calculatePath(int startIdx, int targetIdx, int startDir, char* o
         bool isMainEnd = (targetIdx == 0 || targetIdx == 3);   // a01, a04
         bool isSlotEnd = (targetIdx >= 10 && targetIdx <= 15); // s11~s13, r14~r16
         if (isMainEnd) {
-            outPath[outLen - 1] = 'U';
+            // A01/A04: 마지막 명령(S) 유지하고 E만 추가 → "SE" (직진 후 도착)
             outPath[outLen++] = 'E';
         } else if (isSlotEnd && outLen < PATH_STRING_MAX - 3) {
             outPath[outLen - 1] = oppositeDir(lastCmd);
