@@ -67,7 +67,7 @@ class DatabaseManager:
             print("ℹ️  이미 연결이 해제된 상태입니다.")
 
     # ──────────── 쿼리 실행 (SELECT) ────────────
-    def execute_query(self, query: str, params: tuple = None) -> list[dict] | None:
+    def execute_query(self, query: str, params: tuple | None = None) -> list[dict] | None:
         """
         SELECT 쿼리를 실행하고 결과를 딕셔너리 리스트로 반환한다.
 
@@ -92,7 +92,7 @@ class DatabaseManager:
             return None
 
     # ──────────── 쿼리 실행 (INSERT / UPDATE / DELETE) ────────────
-    def execute_update(self, query: str, params: tuple = None) -> int:
+    def execute_update(self, query: str, params: tuple | None = None) -> int:
         """
         INSERT / UPDATE / DELETE 등 변경 쿼리를 실행하고 영향받은 행 수를 반환한다.
 
