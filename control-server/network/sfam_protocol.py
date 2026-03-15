@@ -3,6 +3,7 @@ sfam_protocol.py
 ================
 SFAM Serial Packet Protocol Specification v1.0 파이썬 구현체
 CRC16-CCITT 계산, 패킷 파싱, 조립을 담당.
+수정 사항: 액추에이터 제어(MSG_ACTUATOR_CMD) 관련 ID 및 생성 함수 추가
 """
 import struct
 
@@ -20,7 +21,7 @@ MSG_AGV_TASK_ACK    = 0x12
 MSG_AGV_STATUS_RPT  = 0x13
 MSG_AGV_EMERGENCY   = 0x14
 MSG_SENSOR_BATCH    = 0x20
-MSG_ACTUATOR_CMD    = 0x21
+MSG_ACTUATOR_CMD    = 0x21  # 액추에이터 제어 명령
 MSG_ACTUATOR_ACK    = 0x22
 MSG_CTRL_STATUS     = 0x23
 MSG_RFID_EVENT      = 0x24
@@ -29,6 +30,13 @@ MSG_DOCK_ACK        = 0x31
 MSG_ERROR_REPORT    = 0xF0
 MSG_ACK             = 0xFE
 MSG_NAK             = 0xFF
+
+# Actuator IDs (팀원 추가 반영 사항)
+ACT_ID_MODE         = 0  # 0: Manual / 1: Auto
+ACT_ID_PUMP         = 1
+ACT_ID_FAN          = 2
+ACT_ID_HEATER       = 3
+ACT_ID_LED          = 4
 
 # Device ID
 ID_SERVER    = 0x00
@@ -56,6 +64,17 @@ def build_packet(msg_type: int, src_id: int, dst_id: int, seq: int, payload: byt
     crc = calc_crc16(data)
     crc_bytes = struct.pack('!H', crc)
     return data + crc_bytes
+
+def build_actuator_packet(dst_id: int, actuator_id: int, state_value: int, seq: int = 0) -> bytes:
+    """
+    액추에이터 제어 전용 패킷 생성 함수
+    - actuator_id: 0(MODE), 1(PUMP), 2(FAN), 3(HEATER), 4(LED)
+    - state_value: 0(OFF/MANUAL), 1(ON/AUTO) (LED의 경우 0~100)
+    Payload: [actuator_id, state_value, 0, 0, 0, 0, 0, 0] (8 bytes 고정)
+    """
+    # 8바이트 페이로드 구성 (첫 두 바이트에 ID와 설정값, 나머지는 0으로 채움)
+    payload = struct.pack('!BB6x', actuator_id, state_value)
+    return build_packet(MSG_ACTUATOR_CMD, ID_SERVER, dst_id, seq, payload)
 
 class SfamParser:
     """State Machine based packet parser for continuous stream"""
