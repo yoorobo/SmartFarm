@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Farm System - Dashboard</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="top-nav">
+            <div class="logo">
+                <h1>🌱 Smart Farm</h1>
+                <span class="badge">통합 관제</span>
+            </div>
+
+            <div class="nav-actions">
+                <span class="status-indicator online"></span>
+                <span class="server-status">서버 연결됨</span>
+                <div class="user-profile">
+                    <span id="current-user">admin</span>
+                    <a href="/logout" class="btn-logout">로그아웃</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main class="main-grid">
+
+
+
+            <!-- Center Panel: Track Visualization -->
+            <section class="panel track-panel">
+                <div class="panel-header">
+                    <h2>AGV & 물류 트랙 관제</h2>
+                    <div class="legend">
+                        <span class="legend-item">
+                            <div class="dot agv"></div>AGV 로봇🚚
+                        </span>
+                        <span class="legend-item">
+                            <div class="dot plant"></div>화분 적재됨🪴
+                        </span>
+                    </div>
+                </div>
+
+                <div class="track-container">
+                    <!-- SVG Track Background -->
+                    <svg class="track-lines" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                        <!-- A line: a01-a02-a03-a04 (Y=50%) -->
+                        <line x1="10%" y1="50%" x2="90%" y2="50%" stroke="#30363d" stroke-width="4"
+                            stroke-dasharray="10,10" />
+                        <!-- S horiz line: Y=30% -->
+                        <line x1="20%" y1="30%" x2="60%" y2="30%" stroke="#30363d" stroke-width="4"
+                            stroke-dasharray="10,10" />
+                        <!-- S vert lines -->
+                        <line x1="20%" y1="10%" x2="20%" y2="30%" stroke="#30363d" stroke-width="4"
+                            stroke-dasharray="10,10" />
+                        <line x1="40%" y1="10%" x2="40%" y2="50%" stroke="#30363d" stroke-width="4"
+                            stroke-dasharray="10,10" />
+                        <line x1="60%" y1="10%" x2="60%" y2="30%" stroke="#30363d" stroke-width="4"
+                            stroke-dasharray="10,10" />
+                        <!-- R horiz line: Y=70% -->
+                        <line x1="40%" y1="70%" x2="80%" y2="70%" stroke="#30363d" stroke-width="4"
+                            stroke-dasharray="10,10" />
+                        <!-- R vert lines -->
+                        <line x1="40%" y1="70%" x2="40%" y2="90%" stroke="#30363d" stroke-width="4"
+                            stroke-dasharray="10,10" />
+                        <line x1="60%" y1="50%" x2="60%" y2="90%" stroke="#30363d" stroke-width="4"
+                            stroke-dasharray="10,10" />
+                        <line x1="80%" y1="70%" x2="80%" y2="90%" stroke="#30363d" stroke-width="4"
+                            stroke-dasharray="10,10" />
+
+                        <!-- AGV 활성 경로 오버레이 (PathFinder.cpp 그래프 기준) -->
+                        <!-- 메인 라인: A01-A02-A03-A04 -->
+                        <line class="agv-active-path" id="path-a01-a02" x1="10%" y1="50%" x2="40%" y2="50%" />
+                        <line class="agv-active-path" id="path-a02-a03" x1="40%" y1="50%" x2="60%" y2="50%" />
+                        <line class="agv-active-path" id="path-a03-a04" x1="60%" y1="50%" x2="90%" y2="50%" />
+                        <!-- S-Zone 분기: A02 ↔ S06 (상단 진입점) -->
+                        <line class="agv-active-path" id="path-a02-s06" x1="40%" y1="50%" x2="40%" y2="30%" />
+                        <!-- S 수평: S05-S06-S07 -->
+                        <line class="agv-active-path" id="path-s05-s06" x1="20%" y1="30%" x2="40%" y2="30%" />
+                        <line class="agv-active-path" id="path-s06-s07" x1="40%" y1="30%" x2="60%" y2="30%" />
+                        <!-- S 보관실 진입: S05↔S11, S06↔S12, S07↔S13 -->
+                        <line class="agv-active-path" id="path-s05-s11" x1="20%" y1="30%" x2="20%" y2="10%" />
+                        <line class="agv-active-path" id="path-s06-s12" x1="40%" y1="30%" x2="40%" y2="10%" />
+                        <line class="agv-active-path" id="path-s07-s13" x1="60%" y1="30%" x2="60%" y2="10%" />
+                        <!-- R-Zone 분기: A03 ↔ R09 (하단 진입점) -->
+                        <line class="agv-active-path" id="path-a03-r09" x1="60%" y1="50%" x2="60%" y2="70%" />
+                        <!-- R 수평: R08-R09-R10 -->
+                        <line class="agv-active-path" id="path-r08-r09" x1="40%" y1="70%" x2="60%" y2="70%" />
+                        <line class="agv-active-path" id="path-r09-r10" x1="60%" y1="70%" x2="80%" y2="70%" />
+                        <!-- R 보관실 진입: R08↔R14, R09↔R15, R10↔R16 -->
+                        <line class="agv-active-path" id="path-r08-r14" x1="40%" y1="70%" x2="40%" y2="90%" />
+                        <line class="agv-active-path" id="path-r09-r15" x1="60%" y1="70%" x2="60%" y2="90%" />
+                        <line class="agv-active-path" id="path-r10-r16" x1="80%" y1="70%" x2="80%" y2="90%" />
+                    </svg>
+
+                    <!-- Inbound / Outbound -->
+                    <div class="track-node station inbound" id="node-a01" data-label="A01 (입고장)">
+                        <div class="plant-indicator hidden">🪴</div>
+                    </div>
+                    <div class="track-node station outbound" id="node-a04" data-label="A04 (출고장)">
+                        <div class="plant-indicator hidden">🪴</div>
+                    </div>
+
+                    <!-- Path Nodes -->
+                    <div class="track-node" id="node-a02" data-label="A02"></div>
+                    <div class="track-node" id="node-a03" data-label="A03"></div>
+
+                    <!-- S Nodes (Nursery) -->
+                    <div class="track-node" id="node-s05" data-label="S05"></div>
+                    <div class="track-node" id="node-s06" data-label="S06"></div>
+                    <div class="track-node" id="node-s07" data-label="S07"></div>
+                    <div class="track-node env-node storage-node" id="node-s11" onclick="openNodeModal('s11')"
+                        data-label="S11">
+                        <div class="env-data" id="env-s11">🌡️ <span class="v temp">--</span>℃<br>💧 <span
+                                class="v hum">--</span>%<br>☀️ <span class="v lux">--</span>lx</div>
+                    </div>
+                    <div class="track-node env-node storage-node" id="node-s12" onclick="openNodeModal('s12')"
+                        data-label="S12">
+                        <div class="env-data" id="env-s12">🌡️ <span class="v temp">--</span>℃<br>💧 <span
+                                class="v hum">--</span>%<br>☀️ <span class="v lux">--</span>lx</div>
+                    </div>
+                    <div class="track-node env-node storage-node" id="node-s13" onclick="openNodeModal('s13')"
+                        data-label="S13">
+                        <div class="env-data" id="env-s13">🌡️ <span class="v temp">--</span>℃<br>💧 <span
+                                class="v hum">--</span>%<br>☀️ <span class="v lux">--</span>lx</div>
+                    </div>
+
+                    <!-- R Nodes (Radish) -->
+                    <div class="track-node" id="node-r08" data-label="R08"></div>
+                    <div class="track-node" id="node-r09" data-label="R09"></div>
+                    <div class="track-node" id="node-r10" data-label="R10"></div>
+                    <div class="track-node env-node storage-node" id="node-r14" onclick="openNodeModal('r14')"
+                        data-label="R14">
+                        <div class="env-data" id="env-r14">🌡️ <span class="v temp">--</span>℃<br>💧 <span
+                                class="v hum">--</span>%<br>☀️ <span class="v lux">--</span>lx</div>
+                    </div>
+                    <div class="track-node env-node storage-node" id="node-r15" onclick="openNodeModal('r15')"
+                        data-label="R15">
+                        <div class="env-data" id="env-r15">🌡️ <span class="v temp">--</span>℃<br>💧 <span
+                                class="v hum">--</span>%<br>☀️ <span class="v lux">--</span>lx</div>
+                    </div>
+                    <div class="track-node env-node storage-node" id="node-r16" onclick="openNodeModal('r16')"
+                        data-label="R16">
+                        <div class="env-data" id="env-r16">🌡️ <span class="v temp">--</span>℃<br>💧 <span
+                                class="v hum">--</span>%<br>☀️ <span class="v lux">--</span>lx</div>
+                    </div>
+
+                    <!-- AGV Robot Element (Moves across nodes) -->
+                    <div id="agv-robot" class="agv-marker hidden">
+                        <div class="agv-body">🚚</div>
+                        <div class="agv-load hidden">🪴</div>
+                        <div class="agv-tooltip">
+                            <div class="id">R01</div>
+                            <div class="bat">🔋 <span>--</span>%</div>
+                        </div>
+                    </div>
+
+                    <!-- Floating Overlays on Map -->
+                    <div class="floating-camera">
+                        <div class="cam-header">
+                            <h3>ESP32-CAM (라이브 뷰)</h3>
+                            <span id="cam-fps" class="fps-badge">0 FPS</span>
+                        </div>
+                        <div class="cam-view">
+                            <img id="agv-cam-stream" src="/api/camera/stream/1" alt="카메라 오프라인"
+                                onerror="this.onerror=null; this.src=''; this.alt='카메라 오프라인';">
+                        </div>
+                    </div>
+
+                    <div class="floating-controls">
+                        <button class="btn btn-action" onclick="openGotoModal()"
+                            style="font-size: 14px; padding: 12px;">🎯 로봇 목적지 전송</button>
+                        <button class="btn btn-action" onclick="sendArmCommand('INBOUND_PICKUP')"
+                            style="font-size: 14px; padding: 12px; background: linear-gradient(135deg, #238636, #2ea043);">📦 입고명령</button>
+                        <button class="btn btn-action" onclick="sendArmCommand('U_TURN_TEST')"
+                            style="font-size: 14px; padding: 12px; background: linear-gradient(135deg, #8957e5, #9b6dec);">🔄 U턴 테스트</button>
+                        <button class="btn btn-secondary" onclick="openFullLogsModal()">📋 전체 작업 로그</button>
+                        <button class="btn btn-danger" onclick="emergencyStop()">🚨 시스템 비상 정지</button>
+                    </div>
+
+
+                </div>
+
+            </section>
+        </main>
+    </div>
+
+    <!-- Node Detail Modal (Nursery Section) -->
+    <div id="node-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h2 id="modal-title">노드 상세</h2>
+                <button class="btn-close" onclick="closeNodeModal()">✕</button>
+            </div>
+            <div class="modal-body modal-grid">
+                <div class="modal-cam">
+                    <h3>환경 관측 카메라 (육묘장)</h3>
+                    <div class="placeholder-cam">
+                        <img id="nursery-cam-stream" src="/api/camera/stream/10" alt="육묘장 카메라"
+                            style="width:100%; height:100%; object-fit:cover; border-radius:8px;"
+                            onerror="this.onerror=null; this.src=''; this.alt='카메라 오프라인';">
+                        <span style="display:none;">카메라 대기 중</span>
+                    </div>
+                </div>
+                <div class="modal-controls">
+                    <h3>환경 제어 (Auto/Manual)</h3>
+                    <div class="control-grid">
+                        <div class="control-item mode-toggle" style="grid-column: 1 / -1; margin-bottom: 10px; background: rgba(88, 166, 255, 0.1); padding: 10px; border-radius: 8px;">
+                            <label style="color: #58a6ff; font-weight: bold;">[공통] 자동 제어 모드</label>
+                            <label class="switch">
+                                <input type="checkbox" id="ctrl-mode" onchange="toggleDevice('mode')">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="control-item led-control-item" style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: flex-start;">
+                            <label style="margin-bottom: 5px;">LED 밝기 수동 제어 (0~100)</label>
+                            <div style="display: flex; gap: 10px; width: 100%; align-items: center;">
+                                <input type="range" id="ctrl-led-range" min="0" max="100" value="0" style="flex-grow: 1;" oninput="document.getElementById('ctrl-led-num').value=this.value">
+                                <input type="number" id="ctrl-led-num" min="0" max="100" value="0" style="width: 60px; background: #30363d; color: white; border: 1px solid #484f58; border-radius: 4px; padding: 4px; text-align: center;" oninput="document.getElementById('ctrl-led-range').value=this.value">
+                                <button id="btn-set-led" onclick="setLedValue()" style="background: #238636; color: white; border: none; border-radius: 4px; padding: 4px 12px; font-weight: bold; cursor: pointer;">적용</button>
+                            </div>
+                        </div>
+                        <div class="control-item">
+                            <label>환기 팬</label>
+                            <label class="switch">
+                                <input type="checkbox" id="ctrl-fan" onchange="toggleDevice('fan')">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="control-item">
+                            <label>워터 펌프 (양액)</label>
+                            <label class="switch">
+                                <input type="checkbox" id="ctrl-pump" onchange="toggleDevice('pump')">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="control-item">
+                            <label>온풍기 (히터)</label>
+                            <label class="switch">
+                                <input type="checkbox" id="ctrl-heater" onchange="toggleDevice('heater')">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-chart-container">
+                    <canvas id="node-env-chart"></canvas>
+                </div>
+                <!-- Plant Date Section -->
+                <div class="modal-info-footer">
+                    <div class="info-item">
+                        <span class="label">🌱 작물:</span>
+                        <span id="node-crop-name" class="value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">📅 입고 날짜:</span>
+                        <span id="node-incoming-date" class="value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">🚜 출고 예정:</span>
+                        <span id="node-outgoing-date" class="value">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Logs Modal -->
+    <div id="logs-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel large">
+            <div class="modal-header">
+                <h2>전체 통합 작업 로그</h2>
+                <div class="modal-tabs">
+                    <button class="tab-btn active" onclick="switchLogTab('agv')">AGV 작업</button>
+                    <button class="tab-btn" onclick="switchLogTab('inout')">입출고 기록</button>
+                    <button class="tab-btn" onclick="switchLogTab('nursery')">육묘장 로그</button>
+                </div>
+                <button class="btn-close" onclick="closeFullLogsModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <!-- AGV Logs -->
+                <div id="tab-agv" class="tab-content">
+                    <table class="logs-table">
+                        <thead>
+                            <tr>
+                                <th>명령어</th>
+                                <th>출발지</th>
+                                <th>목적지</th>
+                                <th>도착 여부</th>
+                                <th>시간</th>
+                            </tr>
+                        </thead>
+                        <tbody id="full-logs-body">
+                            <!-- Logs populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- InOut Logs -->
+                <div id="tab-inout" class="tab-content hidden">
+                    <table class="logs-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>작업 내용</th>
+                                <th>시간</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inout-logs-body"></tbody>
+                    </table>
+                </div>
+                <!-- Nursery Logs -->
+                <div id="tab-nursery" class="tab-content hidden">
+                    <div class="log-filters" style="display: flex; gap: 10px; margin-bottom: 15px; align-items: flex-end; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px;">
+                        <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px;">
+                            <label style="font-size: 12px; color: #8b949e;">육묘장 선택</label>
+                            <select id="filter-nursery-node" style="background: #30363d; color: white; border: 1px solid #484f58; border-radius: 4px; padding: 6px 10px;">
+                                <option value="all">전체</option>
+                                <option value="S11">S11</option>
+                                <option value="S12">S12</option>
+                                <option value="S13">S13</option>
+                                <option value="R14">R14</option>
+                                <option value="R15">R15</option>
+                                <option value="R16">R16</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px;">
+                            <label style="font-size: 12px; color: #8b949e;">시작 날짜</label>
+                            <input type="date" id="filter-nursery-start" style="background: #30363d; color: white; border: 1px solid #484f58; border-radius: 4px; padding: 5px 10px;">
+                        </div>
+                        <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px;">
+                            <label style="font-size: 12px; color: #8b949e;">종료 날짜</label>
+                            <input type="date" id="filter-nursery-end" style="background: #30363d; color: white; border: 1px solid #484f58; border-radius: 4px; padding: 5px 10px;">
+                        </div>
+                        <button class="btn btn-action" onclick="fetchNurseryLogs()" style="padding: 7px 15px; font-size: 13px;">필터 적용</button>
+                    </div>
+                    <table class="logs-table">
+                        <thead>
+                            <tr>
+                                <th>유형</th>
+                                <th>육묘장</th>
+                                <th>내용</th>
+                                <th>시간</th>
+                            </tr>
+                        </thead>
+                        <tbody id="nursery-logs-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GOTO Modal -->
+    <div id="goto-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel" style="width: 400px;">
+            <div class="modal-header">
+                <h2>수동 목적지 전송</h2>
+                <button class="btn-close" onclick="closeGotoModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <select id="dest-select" class="input-modern" style="margin-bottom: 20px;">
+                    <option value="">이동할 목적지 선택...</option>
+                    <optgroup label="작업장">
+                        <option value="a01">A01 (입고장)</option>
+                        <option value="a04">A04 (출고장)</option>
+                    </optgroup>
+                    <optgroup label="섹션1 (성장기)">
+                        <option value="s05">S05</option>
+                        <option value="s06">S06</option>
+                        <option value="s07">S07</option>
+                    </optgroup>
+                    <optgroup label="섹션2 (발아기 - 저장소)">
+                        <option value="s11">S11 (저장소)</option>
+                        <option value="s12">S12 (저장소)</option>
+                        <option value="s13">S13 (저장소)</option>
+                    </optgroup>
+                    <optgroup label="섹션3 (무 분기점)">
+                        <option value="r08">R08</option>
+                        <option value="r09">R09</option>
+                        <option value="r10">R10</option>
+                    </optgroup>
+                    <optgroup label="섹션4 (무 저장소)">
+                        <option value="r14">R14 (저장소)</option>
+                        <option value="r15">R15 (저장소)</option>
+                        <option value="r16">R16 (저장소)</option>
+                    </optgroup>
+                </select>
+                <button class="btn btn-action" onclick="sendGotoCmd()" style="width: 100%;">명령 전송</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/main.js"></script>
+</body>
+
+</html>

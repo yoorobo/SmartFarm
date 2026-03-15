@@ -1,0 +1,117 @@
+# =============================================
+#  통합 스마트팜 자동화 시스템 – .gitignore
+#  (Python + PyQt6 + Arduino/ESP32 + 멀티 OS)
+# =============================================
+
+# ─────────────────────────────────────────────
+#  1. OS 시스템 파일
+# ─────────────────────────────────────────────
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+robot_tasks.db
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.Trash-*
+.nfs*
+
+# ─────────────────────────────────────────────
+#  2. Python 캐시 / 가상환경 / 빌드
+# ─────────────────────────────────────────────
+
+# 바이트코드 캐시
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 가상환경
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# 배포 / 패키징
+dist/
+build/
+*.egg-info/
+*.egg
+*.whl
+
+# PyInstaller
+*.spec
+
+# pytest / coverage
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+*.cover
+
+# mypy / type-check
+.mypy_cache/
+.dmypy.json
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# ─────────────────────────────────────────────
+#  3. Arduino IDE / ESP32 컴파일 결과물
+# ─────────────────────────────────────────────
+
+# 빌드 디렉토리
+build/
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# 컴파일 바이너리
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.d
+
+# Arduino IDE 설정
+.arduino/
+libraries/
+
+# ─────────────────────────────────────────────
+#  4. IDE / 에디터 설정
+# ─────────────────────────────────────────────
+
+# VSCode
+.vscode/
+
+# JetBrains (PyCharm, CLion 등)
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ─────────────────────────────────────────────
+#  5. 기타
+# ─────────────────────────────────────────────
+
+# 로그 파일
+*.log
+
+# 환경 변수 파일 (혹시 나중에 쓸 경우 대비)
+.env
+.env.local
+.env.production
